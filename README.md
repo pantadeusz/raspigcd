@@ -1,6 +1,6 @@
 # Raspberry Pi G-CODE interpreter
 
-by Tadeusz Puźniakowski [frezia.pl](frezia.pl) [puzniakowski.pl](puzniakowski.pl)
+by Tadeusz Puźniakowski [http://frezia.pl](frezia.pl) [http://puzniakowski.pl](puzniakowski.pl)
 
 ## Short description
 
