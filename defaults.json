@@ -1,0 +1,47 @@
+{
+    "config": {
+        "CoordTranslate": {
+            "motorConfiguration": "corexy",
+            "scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            },
+            "stepsPerMm": {
+                "a": 100,
+                "b": 100,
+                "c": 100
+            }
+        },
+        "GcdCommandsInterpreter": {
+            "g0speed": 160,
+            "g1speed": 5,
+            "g0speedV0":15,
+            "g0speedV0ddt":10
+        },
+        "MotorMoves": {
+            "tickTime": 100
+        },
+        "SpindlePiConfig": {
+            "pin": 18,
+            "servopwm":1
+        },
+        "StepperPiConfig": {
+            "m0": {
+                "dir": 27,
+                "en": 10,
+                "step": 22
+            },
+            "m1": {
+                "dir": 4,
+                "en": 10,
+                "step": 17
+            },
+            "m2": {
+                "dir": 9,
+                "en": 10,
+                "step": 11
+            }
+        }
+    }
+}

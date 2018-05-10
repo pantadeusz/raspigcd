@@ -1,0 +1,8 @@
+{
+    "depends":[
+        {"name":"tpcommon", "version":""},
+        {"name":"nlohmann_json", "version":"3.1.2"},
+        {"name":"catch", "version":"1.10"},
+        {"name":"fakeit","version":"2017.05.07"}
+    ]
+}
