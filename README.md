@@ -1,6 +1,6 @@
 # Raspberry Pi G-CODE interpreter
 
-by Tadeusz Puźniakowski [http://frezia.pl](frezia.pl) [http://puzniakowski.pl](puzniakowski.pl)
+by Tadeusz Puźniakowski [frezia.pl](http://frezia.pl) [puzniakowski.pl](http://puzniakowski.pl)
 
 ## Short description
 
@@ -13,6 +13,19 @@ The reason why I created this app was that I wanted to have real-time control ov
 If you would like to obtain different license, then feel free to contact me.
 
 You can see how does it work at [YouTube](https://youtu.be/KTBCnEE6s4s).
+
+
+## Dependencies
+
+You need the following dependencies to build this project:
+
+ * cmake
+ * make
+ * nodejs
+ * git
+ * g++ 6 or higher
+ * Linux
+
 
 ## Build
 
