@@ -49,7 +49,7 @@ class Steps : public std::array<int, 4>
 
 inline Steps operator+(const Steps &a, const Steps &b)
 {
-	return Steps(a[0] + b[0], a[1] + b[1], a[2] + b[2],a[3] + b[3]);
+	return Steps(a[0] + b[0], a[1] + b[1], a[2] + b[2], a[3] + b[3]);
 }
 inline Steps operator-(const Steps &a, const Steps &b)
 {
@@ -75,9 +75,9 @@ inline double len2(Steps &s)
 {
 	return s[0] * s[0] + s[1] * s[1] + s[2] * s[2] + s[3] * s[3];
 }
-inline double len2(Steps &s, bool x, bool y, bool z)
+inline double len2(Steps &s, bool x, bool y, bool z, bool t = false)
 {
-	return (x ? s[0] * s[0] : 0) + (y ? s[1] * s[1] : 0) + (z ? s[2] * s[2] : 0);
+	return (x ? s[0] * s[0] : 0) + (y ? s[1] * s[1] : 0) + (z ? s[2] * s[2] : 0) + (t ? s[3] * s[3] : 0);
 }
 
 // the SafeQueue was based on article https://juanchopanzacpp.wordpress.com/2013/02/26/concurrent-queue-c11/
@@ -172,7 +172,7 @@ class MotorCommand
 		spindle
 	};
 	int delayBefore;
-	std::array<signed char, 3> steps; // steps to perform
+	std::array<signed char, 4> steps; // steps to perform
 	char commands;					  // additional commands - turn on or off motors
 };
 

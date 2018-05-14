@@ -36,7 +36,7 @@ TEST_CASE( "motor timings", "[timings][MotorMoves]" ) {
 
 	recordedTimes.reserve( stepsToPerform+4 );
 	When( Method( stepperMock,enabled ) ).Return();
-	When( Method( stepperMock,step ) ).AlwaysDo( [&recordedTimes]( std::array<signed char, 3> steps ) {
+	When( Method( stepperMock,step ) ).AlwaysDo( [&recordedTimes]( std::array<signed char, 4> steps ) {
 		recordedTimes.push_back( std::chrono::high_resolution_clock::now() );
 		for ( unsigned i = 0; i < steps.size(); i++ ) {
 			if ( steps[i] > 0 ) steps[i] -= 1;
@@ -96,7 +96,7 @@ TEST_CASE( "motor paths", "[paths][MotorMoves]" ) {
 	std::vector < int > position = {( int )img.width/2,( int )img.height/2,0};
 
 	When( Method( stepperMock,enabled ) ).AlwaysReturn();
-	When( Method( stepperMock,step ) ).AlwaysDo( [&]( std::array<signed char, 3> &steps ) {
+	When( Method( stepperMock,step ) ).AlwaysDo( [&]( std::array<signed char, 4> &steps ) {
 		bool updt = false;
 		for ( unsigned i = 0; i < steps.size(); i++ ) {
 			//position[i] += steps[i];

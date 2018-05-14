@@ -30,7 +30,7 @@ tp::coord::Position MachineSimulationState::getPosition( const tp::motor::Steps 
 tp::coord::Position MachineSimulationState::getPosition() {
 	return Position ( ctranslate->translate( getSteps() ) );
 }
-void MachineSimulationState::doStep( std::array<signed char, 3> &steps, bool recordTimes ) {
+void MachineSimulationState::doStep( std::array<signed char, 4> &steps, bool recordTimes ) {
 	if ( recordTimes ) recordedTimes.push_back( std::chrono::high_resolution_clock::now() );
 	for ( unsigned i = 0; i < steps.size(); i++ ) {
 		if ( steps[i] > 0 ) {

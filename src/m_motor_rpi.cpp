@@ -119,7 +119,7 @@ public:
 	/**
 	    * executes one motor step. takes value - number of steps to perform in given direction (positive or negative). Warning - for smooth work it should be max 1 step
 	    */
-	void step( std::array<signed char, 3> &dir );
+	void step( std::array<signed char, 4> &dir );
 	/**
 	    * enable or disable stepper motor
 	    */
@@ -194,7 +194,8 @@ int stepper_pi::configure( const std::vector  <StepperPiConfig> &conf ) {
 	return 0;
 }
 
-void stepper_pi::step( std::array<signed char, 3> &dirs ) {
+void stepper_pi::step( std::array<signed char, 4> &dirs ) {
+	if (dirs[3] != 0) throw "this should not happen";
 	for ( unsigned i = 0; i < dirs.size(); i++ ) {
 		if ( dirs[i] > 0 ) {
 			GPIO_SET = 1 << conf[i].dir;
@@ -332,20 +333,6 @@ int buttons_pi::configure( const ButtonsPiConfig &c ) {
 	for (int i = 0; i < 1500; i++) {
 		cnt += i;
 	}
-//	for (int i = 0; i < 10; i++) {
-//	std::cout << 
-//		((GPIO_READ(c.x))>>(c.x)) << ";" << 
-//		((GPIO_READ(c.y))>>(c.y)) << ";" << 
-//		((GPIO_READ(c.z))>>(c.z)) << ";" << 
-//		((GPIO_READ(c.t))>>(c.t)) << ";" << std::endl;
-//
-//	std::cout << 
-//		(GPIO_READ(c.x)) << ";" << 
-//		(GPIO_READ(c.y)) << ";" << 
-//		(GPIO_READ(c.z)) << ";" << 
-//		(GPIO_READ(c.t)) << ";" << std::endl;
-//	//sleep(1);
-//	}
 	return cnt & 0;
 }
 std::array<unsigned char,4> buttons_pi::getButtons( ) {

@@ -38,7 +38,7 @@ public:
 	 * executes one motors step. takes value - number of steps to perform in given direction (positive or negative). 
 	 * It will perform one step in given direction and reduce steps remaining by 1
 	 */
-	virtual void step( std::array<signed char, 3> &dir ) = 0;
+	virtual void step( std::array<signed char, 4> &dir ) = 0;
 	/**
 	 * enable or disable stepper motor
 	 */

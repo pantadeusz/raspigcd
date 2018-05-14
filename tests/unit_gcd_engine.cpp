@@ -76,7 +76,7 @@ SCENARIO( "Test for GcodeEngine class", "[gcd][GcodeEngine]" ) {
 	GIVEN( "the coordinate translation and hardware motors are given" ) {
 
 		When( Method( stepperMock,enabled ) ).AlwaysReturn();
-		When( Method( stepperMock,step ) ).AlwaysDo( [&]( std::array<signed char, 3> &steps ) {
+		When( Method( stepperMock,step ) ).AlwaysDo( [&]( std::array<signed char, 4> &steps ) {
 			mState.doStep( steps, true );
 		} );
 		When( Method( spindleMock, setSpeed ) ).AlwaysReturn();

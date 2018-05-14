@@ -29,7 +29,7 @@ TEST_CASE( "Test for Machine class", "[machine][Machine]" ) {
 	Position mockPosition;
 	auto prevTime = std::chrono::high_resolution_clock::now();
 	When( Method( stepperMock,enabled ) ).AlwaysReturn();
-	When( Method( stepperMock,step ) ).AlwaysDo( [&]( std::array<signed char, 3> steps ) {
+	When( Method( stepperMock,step ) ).AlwaysDo( [&]( std::array<signed char, 4> steps ) {
 		for ( unsigned i = 0; i < steps.size(); i++ ) {
 			if ( steps[i] > 0 ) {
 				steps[i] -= 1;
