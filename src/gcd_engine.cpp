@@ -75,7 +75,7 @@ GcodeEngineConfig getDefaults_GcodeEngineConfig() {
 	ret.MotorMoves.tickTime                 = 100;
 	ret.spindle.pin                 = 18;
 	ret.spindle.servopwm            = 1;
-	ret.stepper.resize( 3 );
+	ret.stepper.resize( 4 );
 	ret.stepper[0].dir              = 27;
 	ret.stepper[0].en               = 10;
 	ret.stepper[0].step             = 22;
@@ -85,6 +85,10 @@ GcodeEngineConfig getDefaults_GcodeEngineConfig() {
 	ret.stepper[2].dir              = 9;
 	ret.stepper[2].en               = 10;
 	ret.stepper[2].step             = 11;
+
+	ret.stepper[3].dir              = 0;
+	ret.stepper[3].en               = 10;
+	ret.stepper[3].step             = 5;
 
 //	ret.buttons.x             = 6;
 //	ret.buttons.y             = 13;
@@ -136,6 +140,9 @@ void to_json( nlohmann::json& j, const GcodeEngineConfig& p ) {
 						},
 						{
 							"m2", p.stepper[2]
+						},
+						{
+							"m3", p.stepper[3]
 						}
 					}
 				},

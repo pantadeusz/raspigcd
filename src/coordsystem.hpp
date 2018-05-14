@@ -42,11 +42,13 @@ struct CoordTranslateConfig {
 		double x;//: -1.0,
 		double y;//: 1.0,
 		double z;//: 1.0
+		double t;//: 1.0
 	} scale;
 	struct  {
 		double a;//: 82.0512820513,
 		double b;//: 82.0512820513,
 		double c;//: 200
+		double d;//: 100
 	} stepsPerMm;
 };
 
@@ -68,8 +70,8 @@ public:
 };
 
 
-std::shared_ptr < i_CoordTranslate >  CoordTranslate_corexy_factory( const double stepsPerMM_a_, const double stepsPerMM_b_, const double stepsPerMM_c_, const Position scaleAxis = Position( 1, 1, 1 ) );
-std::shared_ptr < i_CoordTranslate >  CoordTranslate_simple_factory( const double stepsPerMM_x_, const double stepsPerMM_y_, const double stepsPerMM_z_, const Position scaleAxis = Position( 1, 1, 1 ) );
+std::shared_ptr < i_CoordTranslate >  CoordTranslate_corexy_factory( const std::vector<double> stepsPerMM_, const Position scaleAxis = Position( 1, 1, 1 ) );
+std::shared_ptr < i_CoordTranslate >  CoordTranslate_simple_factory( const std::vector<double> stepsPerMM_, const Position scaleAxis = Position( 1, 1, 1 ) );
 std::shared_ptr < i_CoordTranslate >  CoordTranslate_factory( const CoordTranslateConfig &config );
 
 

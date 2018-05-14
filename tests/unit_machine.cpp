@@ -20,7 +20,7 @@ using namespace tp::coord;
 TEST_CASE( "Test for Machine class", "[machine][Machine]" ) {
 	Img8 img( 1024,1024 );
 	Img8 img_dt( 1024,1024 );
-	std::shared_ptr < tp::coord::i_CoordTranslate > ctranslate = CoordTranslate_simple_factory( 1,1,1 );
+	std::shared_ptr < tp::coord::i_CoordTranslate > ctranslate = CoordTranslate_simple_factory( {1,1,1,1} );
 
 	Mock<i_Stepper> stepperMock;
 	Mock<i_Spindle> spindleMock;
@@ -63,7 +63,7 @@ TEST_CASE( "Test for Machine class", "[machine][Machine]" ) {
 	SECTION( "test standard euclidean coordinate system" ) {
 
 		{
-			ctranslate = CoordTranslate_simple_factory( 10,10,10 ) ;
+			ctranslate = CoordTranslate_simple_factory( {10,10,10,10} ) ;
 			std::shared_ptr < i_MotorMoves > p_motor = MotorMoves_factory( &stepperMock.get(), &spindleMock.get(), &buttonsMock.get(),  100 );
 			Machine machine;
 
@@ -99,7 +99,7 @@ TEST_CASE( "Test for Machine class", "[machine][Machine]" ) {
 	SECTION( "test core xy coordinate system" ) {
 
 		{
-			ctranslate = CoordTranslate_corexy_factory( 10,10,10 );
+			ctranslate = CoordTranslate_corexy_factory( {10,10,10,10} );
 			std::shared_ptr < i_MotorMoves > p_motor = MotorMoves_factory( &stepperMock.get(), &spindleMock.get(), &buttonsMock.get(), 100 );
 			Machine machine;
 
