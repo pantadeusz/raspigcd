@@ -16,7 +16,7 @@ using namespace tp::coord;
 using namespace tp::motor;
 
 TEST_CASE( "coordsystem simple test", "[coordsystem][CoordTranslateSimple]" ) {
-	CoordTranslateSimple simpleTranslate(100,200,300, Position(1,1,1));
+	CoordTranslateSimple simpleTranslate({100,200,300,100}, Position(1,1,1));
 	Position pos (10.5,-10.5, 30.1);
 	Steps steps (1001,2001,123);
 	SECTION( "simple movement always positive" ) {
@@ -41,7 +41,7 @@ TEST_CASE( "coordsystem simple test", "[coordsystem][CoordTranslateSimple]" ) {
 }
 
 TEST_CASE( "coordsystem core xy test", "[coordsystem][CoordTranslateCoreXY]" ) {
-	CoordTranslateCoreXY simpleTranslate(100,200,300, Position(1,1,1));
+	CoordTranslateCoreXY simpleTranslate({100,200,300,100}, Position(1,1,1));
 	Position pos (10.5,-10.5, 30.1);
 	Steps steps (1001,2001,123);
 	SECTION( "f(g(x))=x?" ) {

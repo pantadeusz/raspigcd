@@ -108,10 +108,10 @@ bool operator == ( const CoordTranslateConfig & l, const CoordTranslateConfig & 
 
 
 
-CoordTranslateSimple::CoordTranslateSimple( const double stepsPerMM_x_, const double stepsPerMM_y_, const double stepsPerMM_z_, const Position scaleAxis ) {
-	mX = stepsPerMM_x_;
-	mY = stepsPerMM_y_;
-	mZ = stepsPerMM_z_;
+CoordTranslateSimple::CoordTranslateSimple( const std::vector<double> stepsPerMM_, const Position scaleAxis ) {
+	mX = stepsPerMM_[0];
+	mY = stepsPerMM_[1];
+	mZ = stepsPerMM_[2];
 
 	sX = scaleAxis[0];
 	sY = scaleAxis[1];
@@ -125,10 +125,10 @@ Position CoordTranslateSimple::translate( const Steps &steps ) {
 };
 
 
-CoordTranslateCoreXY::CoordTranslateCoreXY( const double stepsPerMM_x_, const double stepsPerMM_y_, const double stepsPerMM_z_, const Position scaleAxis ) {
-	mX = stepsPerMM_x_;
-	mY = stepsPerMM_y_;
-	mZ = stepsPerMM_z_;
+CoordTranslateCoreXY::CoordTranslateCoreXY( const std::vector<double> stepsPerMM_, const Position scaleAxis ) {
+	mX = stepsPerMM_[0];
+	mY = stepsPerMM_[1];
+	mZ = stepsPerMM_[2];
 
 	sX = scaleAxis[0];
 	sY = scaleAxis[1];
@@ -144,10 +144,10 @@ Position CoordTranslateCoreXY::translate( const Steps &steps ) {
 
 
 std::shared_ptr < i_CoordTranslate > CoordTranslate_corexy_factory( const double stepsPerMM_x_, const double stepsPerMM_y_, const double stepsPerMM_z_, const Position scaleAxis ) {
-	return std::shared_ptr < i_CoordTranslate >( new CoordTranslateCoreXY( stepsPerMM_x_, stepsPerMM_y_, stepsPerMM_z_, scaleAxis ) );
+	return std::shared_ptr < i_CoordTranslate >( new CoordTranslateCoreXY( {stepsPerMM_x_, stepsPerMM_y_, stepsPerMM_z_}, scaleAxis ) );
 }
 std::shared_ptr < i_CoordTranslate >  CoordTranslate_simple_factory( const double stepsPerMM_x_, const double stepsPerMM_y_, const double stepsPerMM_z_, const Position scaleAxis ) {
-	return std::shared_ptr < i_CoordTranslate >( new CoordTranslateSimple( stepsPerMM_x_, stepsPerMM_y_, stepsPerMM_z_, scaleAxis ) );
+	return std::shared_ptr < i_CoordTranslate >( new CoordTranslateSimple( {stepsPerMM_x_, stepsPerMM_y_, stepsPerMM_z_}, scaleAxis ) );
 }
 
 

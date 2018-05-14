@@ -151,7 +151,6 @@ void to_json( nlohmann::json& j, const GcodeEngineConfig& p ) {
 
 void from_json( const nlohmann::json& j, GcodeEngineConfig& p ) {
 	p = getDefaults_GcodeEngineConfig();
-	int i = 0;
 	try {
 		p.GcodeEngine.simulationFileOutput    = j.at( "config" ).at( "GcodeEngine" ).at( "simulationFileOutput" ).get<std::string>();
 	} catch ( ... ) {}

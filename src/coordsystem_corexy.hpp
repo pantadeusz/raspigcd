@@ -33,10 +33,10 @@ using tp::motor::Steps;
 
 class CoordTranslateCoreXY : public i_CoordTranslate {
 protected:
-	double mX, mY, mZ;
-	double sX, sY, sZ;
+	double mX, mY, mZ, mT;
+	double sX, sY, sZ, sT;
 public:
-	CoordTranslateCoreXY( const double stepsPerMM_x_, const double stepsPerMM_y_, const double stepsPerMM_z_, const Position scaleAxis );
+	CoordTranslateCoreXY( const std::vector<double> stepsPerMM_, const Position scaleAxis );
 	Steps translate( const Position &pos );
 	Position translate( const Steps &steps );
 };
