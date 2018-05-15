@@ -75,7 +75,7 @@ class Machine : public i_Machine {
 protected:
 	std::shared_ptr < tp::coord::i_CoordTranslate > coordTranslator_;
 	std::shared_ptr < i_MotorMoves > motorMoves_;
-	Position minimalStepMm; // this is the positive vector for minimal step in direction (1,1,1) in steps
+	Position minimalStepMm; // this is the positive vector for minimal step in direction (1,1,1,1) in steps
 
 	std::mutex m_csteps_;
 	Steps currentSteps_; // current position in steps

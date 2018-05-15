@@ -126,8 +126,6 @@ void MotorMoves::wait_finished() {
 	command.commands = MotorCommand::Command::nop;
 	_commands.push ( command );
 	_commands.waitEmpty();
-//	std::this_thread::sleep_for ( std::chrono::microseconds( 10000000 ) );
-	//std::unique_lock<std::mutex> lock( m_steps_ );
 }
 Steps MotorMoves::steps_from_origin() {
 	std::unique_lock<std::mutex> l( m_steps_ );
@@ -228,9 +226,10 @@ MotorMoves::MotorMoves( i_Stepper *motors_, i_Spindle *spindle_, i_Buttons *butt
 	_minStepTime = minStepTime_;
 
 	worker_thread_ = std::thread( worker, this );
+	std::this_thread::sleep_until ( steady_clock::now() + std::chrono::microseconds( 2000 ) );
 }
 
-MotorMoves::MotorMoves( p_Stepper motors_p, p_Spindle spindle_p, p_Buttons buttons_p,  int minStepTime_ ) : _steps {0, 0, 0}, _commands( 400 ) {
+MotorMoves::MotorMoves( p_Stepper motors_p, p_Spindle spindle_p, p_Buttons buttons_p,  int minStepTime_ ) : _steps {0, 0, 0, 0}, _commands( 400 ) {
 	_motors_sp = motors_p;
 	_spindle_sp = spindle_p;
 	_buttons_sp = buttons_p;
@@ -243,7 +242,7 @@ MotorMoves::MotorMoves( p_Stepper motors_p, p_Spindle spindle_p, p_Buttons butto
 }
 
 MotorMoves::~MotorMoves() {
-	_commands.push ( {1, {0, 0, 0}, MotorCommand::Command::halt } );
+	_commands.push ( {1, {0, 0, 0, 0}, MotorCommand::Command::halt } );
 	worker_thread_.join();
 }
 

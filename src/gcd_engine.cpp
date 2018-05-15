@@ -398,7 +398,7 @@ Position GcodeEngine::getPosition() {
 
 
 int GcodeEngine::execGcodeProgram( std::istream &gcodeProgramSource, std::function < void ( int, const std::string&, const std::string& ) > callback_, std::function < void ( int ) > callback_end_ ) {
-	std::cout << "execGcodeProgram from stream" << std::endl;
+	//std::cout << "execGcodeProgram from stream" << std::endl;
 	if ( execGcodeProgram_running ) {
 		callback_end_( -1 );
 		return -1;
@@ -423,9 +423,9 @@ int GcodeEngine::execGcodeProgram( std::istream &gcodeProgramSource, std::functi
 		}
 		return 0;
 	} catch ( Machine::BreakException e ) {
-		std::cout << "broken.." << std::endl;
+		//std::cout << "broken.." << std::endl;
 		p_gcd.get()->finish();
-		std::cout << "broken..OK" << std::endl;
+		//std::cout << "broken..OK" << std::endl;
 		callback_end_( -2 );
 		{
 			std::lock_guard<std::mutex> lock( m_executingGcodeProgram );
@@ -467,7 +467,7 @@ void GcodeEngine::setupGcdCommandsInterpreter( std::shared_ptr < i_MotorMoves > 
 GcodeEngine::GcodeEngine ( const GcodeEngineConfig &configuration ): execGcodeProgram_running( false ) {
 
 	if ( configuration.GcodeEngine.simulationFileOutput.length() > 0 ) {
-		std::cout << "FAKE GCODE ENGINE!!  Saving to file: " << ( configuration.GcodeEngine.simulationFileOutput ) << std::endl;
+		//std::cout << "FAKE GCODE ENGINE!!  Saving to file: " << ( configuration.GcodeEngine.simulationFileOutput ) << std::endl;
 		tp::gcd::GcdCommandsInterpreter *ret = new tp::gcd::GcdCommandsInterpreter();
 
 		auto pp_machine = new MachineImgGen( configuration.GcodeEngine.simulationFileOutput, configuration.GcodeEngine.dpi, configuration.GcodeEngine.toolD );

@@ -31,7 +31,6 @@ TEST_CASE ("GcodeEngine can be used to generate simulated gcode paths","[GcodeEn
 	GcodeEngine gcdw ( gcdwconfiguration );
 	std::ifstream fsgcode("tests/unit_gcd_engine_gcdtest.gcd");
 	int ret = gcdw.execGcodeProgram( fsgcode );
-	std::cout << "ret = " << ret << std::endl;
 	REQUIRE(ret == 0);
 }
 

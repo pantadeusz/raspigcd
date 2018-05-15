@@ -42,7 +42,7 @@ namespace motor
 class Steps : public std::array<int, 4>
 {
   public:
-	Steps(const int a, const int b, const int c) : std::array<int, 4>{a, b, c, 0} {}
+	//Steps(const int a, const int b, const int c) : std::array<int, 4>{a, b, c, 0} {}
 	Steps(const int a, const int b, const int c, const int d) : std::array<int, 4>{a, b, c, d} {}
 	Steps() : std::array<int, 4>{0, 0, 0, 0} {}
 };

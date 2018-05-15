@@ -44,11 +44,11 @@ TEST_CASE( "Test for Machine class", "[machine][Machine]" ) {
 
 		if ( ctranslate ) {
 			auto nowTime = std::chrono::high_resolution_clock::now();
-			Steps st( mockSteps[0],mockSteps[1],mockSteps[2] );
+			Steps st( mockSteps[0],mockSteps[1],mockSteps[2],mockSteps[3] );
 			Position p( ctranslate->translate( st ) );
 			mockPosition = p;
 			//std::cout << " p: " << p[0] << ", " << p[1] << ", " << p[2] << std::endl;
-			p = p * 10 + Position( img.width/2,img.height/2,0 ); // 10points per mm
+			p = p * 10 + Position( img.width/2,img.height/2,0,0 ); // 10points per mm
 			img( p[0] ,p[1] ) = ( int )( p[2]*64.0 )%192;
 			auto dt = prevTime - nowTime;
 			prevTime = nowTime;
@@ -71,6 +71,7 @@ TEST_CASE( "Test for Machine class", "[machine][Machine]" ) {
 			machine.setMotorMoves( p_motor );
 
 			machine.waitFinish();
+			REQUIRE( machine.getPosition() == Position( 0,0,0,0 ) );
 			machine.gotoXYZ( Position( 5,10,0 ), 10 );
 			machine.gotoXYZ( Position( 10,10,10 ), 10, 0x03 );
 			machine.gotoXYZ( Position( 10,-10,0 ), 10 );
@@ -105,6 +106,7 @@ TEST_CASE( "Test for Machine class", "[machine][Machine]" ) {
 
 			machine.setCoordinateSystem( ctranslate );
 			machine.setMotorMoves( p_motor );
+			REQUIRE( machine.getPosition() == Position( 0,0,0 ) );
 
 			machine.waitFinish();
 			machine.gotoXYZ( Position( 5,10,0 ), 10 );

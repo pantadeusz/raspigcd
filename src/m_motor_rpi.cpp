@@ -128,7 +128,6 @@ public:
 	bool is_enabled();
 
 	virtual ~stepper_pi() {
-		std::cout << "stepper_pi destructor" << std::endl;
 	}
 };
 
@@ -146,7 +145,6 @@ public:
 
 	void setSpeed( double v );
 	virtual ~spindle_pi() {
-		std::cout << "spindle_pi destructor" << std::endl;
 	}
 };
 
@@ -312,7 +310,7 @@ int buttons_pi::configure( const ButtonsPiConfig &c ) {
 	INP_GPIO( c.t );
 //	std::cout << "GPIO_PULL" << ((unsigned long)GPIO_PULL) << std::endl;
 //	GPIO_PULL = (GPIO_PULL) | (1 << c.x) | (1 << c.y) | (1 << c.z) | (1 << c.t);
-	std::cout << "pulls:  " << c.x << " " << c.y << " " << c.z << " " << c.t << std::endl;
+	std::cout << "button pulls:  " << c.x << " " << c.y << " " << c.z << " " << c.t << std::endl;
 
 
 	// enable pull-up on GPIO24&25
@@ -365,13 +363,9 @@ p_Spindle SpindlePi_factory( const SpindlePiConfig stc ) {
 }
 
 p_Buttons ButtonsPi_factory( const  ButtonsPiConfig stc ) {
-	std::cout << "factory.. *a" << std::endl;
 	buttons_pi *a = new buttons_pi();
-	std::cout << "factory.. ret" << std::endl;
 	p_Buttons ret( a );
-	std::cout << "factory.. configure" << std::endl;
 	a->configure( stc );
-	std::cout << "factory.. return" << std::endl;
 	return ret;
 }
 

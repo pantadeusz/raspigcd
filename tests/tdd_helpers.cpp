@@ -20,7 +20,7 @@ namespace helpers {
 
 
 tp::motor::Steps MachineSimulationState::getSteps() {
-	return Steps( mockSteps[0],mockSteps[1],mockSteps[2] );
+	return Steps( mockSteps[0],mockSteps[1],mockSteps[2], mockSteps[3] );
 }
 
 tp::coord::Position MachineSimulationState::getPosition( const tp::motor::Steps &s ) {

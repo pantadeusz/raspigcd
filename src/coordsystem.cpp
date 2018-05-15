@@ -116,16 +116,16 @@ bool operator == ( const CoordTranslateConfig & l, const CoordTranslateConfig & 
 
 
 
-CoordTranslateSimple::CoordTranslateSimple( const std::vector<double> stepsPerMM_, const Position scaleAxis ) {
-	mX = stepsPerMM_[0];
-	mY = stepsPerMM_[1];
-	mZ = stepsPerMM_[2];
-	mT = stepsPerMM_[3];
-
-	sX = scaleAxis[0];
-	sY = scaleAxis[1];
-	sZ = scaleAxis[2];
-	sT = scaleAxis[3];
+CoordTranslateSimple::CoordTranslateSimple( const std::array<double,4> stepsPerMM_, const Position scaleAxis ) {
+	//if ( stepsPerMm_.size() < 4 ) throw "4 axis must be";
+	if((mX = stepsPerMM_[0]) == 0) throw std::invalid_argument("mX must not be 0");
+	if((mY = stepsPerMM_[1]) == 0) throw std::invalid_argument("mY must not be 0");
+	if((mZ = stepsPerMM_[2]) == 0) throw std::invalid_argument("mZ must not be 0");
+	if((mT = stepsPerMM_[3]) == 0) throw std::invalid_argument("mT must not be 0");
+	if((sX = scaleAxis[0]) == 0) throw std::invalid_argument("sX must not be 0");
+	if((sY = scaleAxis[1]) == 0) throw std::invalid_argument("sY must not be 0");
+	if((sZ = scaleAxis[2]) == 0) throw std::invalid_argument("sZ must not be 0");
+	if((sT = scaleAxis[3]) == 0) throw std::invalid_argument("sT must not be 0");
 }
 Steps CoordTranslateSimple::translate( const Position &pos ) {
 	return Steps( pos[0] * mX * sX, pos[1] * mY * sY, pos[2] * mZ * sZ, pos[3] * mT * sT );
@@ -135,30 +135,32 @@ Position CoordTranslateSimple::translate( const Steps &steps ) {
 };
 
 
-CoordTranslateCoreXY::CoordTranslateCoreXY( const std::vector<double> stepsPerMM_, const Position scaleAxis ) {
-	mX = stepsPerMM_[0];
-	mY = stepsPerMM_[1];
-	mZ = stepsPerMM_[2];
-	mT = stepsPerMM_[3];
-
-	sX = scaleAxis[0];
-	sY = scaleAxis[1];
-	sZ = scaleAxis[2];
-	sT = scaleAxis[3];
+CoordTranslateCoreXY::CoordTranslateCoreXY( const std::array<double,4> stepsPerMM_, const Position scaleAxis ) {
+	//if (stepsPerMm_.size() < 4) throw "4 axis must be";
+	if((mX = stepsPerMM_[0]) == 0) throw std::invalid_argument("mX must not be 0");
+	if((mY = stepsPerMM_[1]) == 0) throw std::invalid_argument("mY must not be 0");
+	if((mZ = stepsPerMM_[2]) == 0) throw std::invalid_argument("mZ must not be 0");
+	if((mT = stepsPerMM_[3]) == 0) throw std::invalid_argument("mT must not be 0");
+	if((sX = scaleAxis[0]) == 0) throw std::invalid_argument("sX must not be 0");
+	if((sY = scaleAxis[1]) == 0) throw std::invalid_argument("sY must not be 0");
+	if((sZ = scaleAxis[2]) == 0) throw std::invalid_argument("sZ must not be 0");
+	if((sT = scaleAxis[3]) == 0) throw std::invalid_argument("sT must not be 0");
+	
 }
 
 Steps CoordTranslateCoreXY::translate( const Position &pos ) {
 	return Steps( ( pos[0] * sX + pos[1] * sY ) * mX, ( pos[0] * sX - pos[1] * sY ) * mY, pos[2] * mZ * sZ , pos[3] * mT * sT);
 };
 Position CoordTranslateCoreXY::translate( const Steps &steps ) {
-	return Position( 0.5 * ( double )( steps[0] / mX + steps[1] / mY ) / sX, 0.5 * ( double )( steps[0] / mX - steps[1] / mY ) / sY, steps[2] / ( mZ * sZ ), steps[3] / ( mT * sT ) );
+	return Position( 0.5 * ( double )( steps[0] / mX + steps[1] / mY ) / sX, 0.5 * ( double )( steps[0] / mX - steps[1] / mY ) / sY,
+	 steps[2] / ( mZ * sZ ), steps[3] / ( mT * sT ) );
 };
 
 
-std::shared_ptr < i_CoordTranslate > CoordTranslate_corexy_factory( const std::vector<double> stepsPerMM_, const Position scaleAxis ) {
+std::shared_ptr < i_CoordTranslate > CoordTranslate_corexy_factory( const std::array<double,4> stepsPerMM_, const Position scaleAxis ) {
 	return std::shared_ptr < i_CoordTranslate >( new CoordTranslateCoreXY( stepsPerMM_, scaleAxis ) );
 }
-std::shared_ptr < i_CoordTranslate >  CoordTranslate_simple_factory( const std::vector<double> stepsPerMM_, const Position scaleAxis ) {
+std::shared_ptr < i_CoordTranslate >  CoordTranslate_simple_factory( const std::array<double,4> stepsPerMM_, const Position scaleAxis ) {
 	return std::shared_ptr < i_CoordTranslate >( new CoordTranslateSimple( stepsPerMM_, scaleAxis ) );
 }
 
@@ -169,9 +171,8 @@ std::shared_ptr < i_CoordTranslate >  CoordTranslate_factory( const CoordTransla
 			{config.scale.x, config.scale.y, config.scale.z, config.scale.t} );
 	}
 	if ( config.motorConfiguration == "simple" ) {
-		return CoordTranslate_simple_factory(  {config.stepsPerMm.a, config.stepsPerMm.b, config.stepsPerMm.c, config.stepsPerMm.c}, {
-			config.scale.x, config.scale.y, config.scale.z, config.scale.t
-		} );
+		return CoordTranslate_simple_factory(  {config.stepsPerMm.a, config.stepsPerMm.b, config.stepsPerMm.c, config.stepsPerMm.d}, {
+			config.scale.x, config.scale.y, config.scale.z, config.scale.t} );
 	}
 	throw std::domain_error( "config.motorConfiguration can be only corexy or simple" );
 }

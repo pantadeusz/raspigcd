@@ -36,7 +36,7 @@ protected:
 	double mX, mY, mZ, mT;
 	double sX, sY, sZ, sT;
 public:
-	CoordTranslateCoreXY( const std::vector<double> stepsPerMM_, const Position scaleAxis );
+	CoordTranslateCoreXY( const std::array<double,4> stepsPerMM_, const Position scaleAxis );
 	Steps translate( const Position &pos );
 	Position translate( const Steps &steps );
 };

@@ -121,7 +121,7 @@ TEST_CASE( "motor paths", "[paths][MotorMoves]" ) {
 		{
 			std::shared_ptr < i_MotorMoves > p_motor = MotorMoves_factory( &stepperMock.get(), &spindleMock.get(), &buttonsMock.get(), 100 );
 			i_MotorMoves &motorMoves = *p_motor.get();
-			motorMoves.steps_from_origin( {( int )img.width/2,( int )img.height/2,0} );
+			motorMoves.steps_from_origin( {( int )img.width/2,( int )img.height/2,0,0} );
 			for ( int j = 0; j < 10; j++ ) {
 				MotorCommand cmd = {60, {1, 1, 1}, MotorCommand::Command::step};
 				motorMoves.push( cmd );
@@ -142,7 +142,7 @@ TEST_CASE( "motor paths", "[paths][MotorMoves]" ) {
 		{
 			std::shared_ptr < i_MotorMoves > p_motor = MotorMoves_factory( &stepperMock.get(), &spindleMock.get(), &buttonsMock.get(), 100 );
 			i_MotorMoves &motorMoves = *p_motor.get();
-			motorMoves.steps_from_origin( {( int )img.width/2,( int )img.height/2,0} );
+			motorMoves.steps_from_origin( {( int )img.width/2,( int )img.height/2,0,0} );
 			for ( int j = 0; j < 100; j++ ) {
 				MotorCommand cmd = {60, {-1, -1, -1}, MotorCommand::Command::step};
 				motorMoves.push( cmd );

@@ -28,7 +28,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include <vector>
+#include <array>
 
 namespace tp {
 namespace coord {
@@ -70,8 +70,8 @@ public:
 };
 
 
-std::shared_ptr < i_CoordTranslate >  CoordTranslate_corexy_factory( const std::vector<double> stepsPerMM_, const Position scaleAxis = Position( 1, 1, 1 ) );
-std::shared_ptr < i_CoordTranslate >  CoordTranslate_simple_factory( const std::vector<double> stepsPerMM_, const Position scaleAxis = Position( 1, 1, 1 ) );
+std::shared_ptr < i_CoordTranslate >  CoordTranslate_corexy_factory( const std::array<double,4> stepsPerMM_, const Position scaleAxis = Position( 1, 1, 1, 1 ) );
+std::shared_ptr < i_CoordTranslate >  CoordTranslate_simple_factory( const std::array<double,4> stepsPerMM_, const Position scaleAxis = Position( 1, 1, 1, 1 ) );
 std::shared_ptr < i_CoordTranslate >  CoordTranslate_factory( const CoordTranslateConfig &config );
 
 

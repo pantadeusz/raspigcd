@@ -20,17 +20,11 @@ using namespace tp::img;
 
 SCENARIO ("Test for configuration conversion between json and cpp object","[to_json][from_json][GcodeEngineConfig]") {
 	SECTION("Simple config creation and conversion") {
-		std::cout << "aaa" << std::endl;
 		GcodeEngineConfig cfg0 = getDefaults_GcodeEngineConfig();
-		std::cout << "aaa 2" << std::endl;
 		nlohmann::json cfg0json = cfg0;
-		std::cout << "aaa 4" << std::endl;
 		GcodeEngineConfig cfg1 = cfg0json;
-		std::cout << "aaa 5" << std::endl;
 		nlohmann::json cfg1json = cfg1;
-		std::cout << "aaa 7" << std::endl;
 		REQUIRE(cfg0json == cfg1json);
-		std::cout << "aaa 8" << std::endl;
 		REQUIRE(cfg0 == cfg1);
 	}
 	SECTION("Are default values preserved if data is incomplete") {
