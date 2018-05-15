@@ -31,7 +31,6 @@ using namespace tp::coord;
 //std::mutex Machine::m_csteps_;
 
 void Machine::breakExecution() {
-	std::cout << "breakin..." << std::endl;
 	doBreak = true;
 }
 
@@ -47,6 +46,9 @@ void Machine::gotoXYZ( const Position &pos0, double velocity, int selectedAxes, 
 	}
 	if ( selectedAxes & 0x04 ) {
 		pos[2] = pos0[2];
+	}
+	if ( selectedAxes & 0x08 ) {
+		pos[3] = pos0[3];
 	}
 	//auto pos = coordTranslator_.get()->translate( destSteps );
 	auto destSteps = coordTranslator_.get()->translate( pos );
@@ -64,7 +66,7 @@ void Machine::gotoXYZ( const Position &pos0, double velocity, int selectedAxes, 
 
 //    auto stepsInDirections = dp/minimalStepMm;
 
-	auto max_fabs = []( double a, double b ) {
+	static auto max_fabs = []( double a, double b ) {
 		a = a < 0 ? -a : a;
 		b = b < 0 ? -b : b;
 		return a > b ? a : b;
@@ -74,14 +76,10 @@ void Machine::gotoXYZ( const Position &pos0, double velocity, int selectedAxes, 
 //double dt_us = t_us/max_steps;
 
 
-
-
 // currentSteps_
 	auto startSteps = currentSteps_;
 	auto dSteps = destSteps - startSteps;
-//std::cout << "dsteps: "  << dSteps[0] << " " << dSteps[1] << " " << dSteps[2] << std::endl;
-	auto maxSteps = max_fabs( max_fabs( dSteps[0], dSteps[1] ), dSteps[2] );
-//std::cout << "maxsteps: "  << maxSteps << std::endl;
+	auto maxSteps = max_fabs(max_fabs( max_fabs( dSteps[0], dSteps[1] ), dSteps[2] ), dSteps[3]);
 	double dt_us = t_us / maxSteps;
 	double dtA_us = tA_us / maxSteps;
 
@@ -89,17 +87,16 @@ void Machine::gotoXYZ( const Position &pos0, double velocity, int selectedAxes, 
 	if ( std::isnan( dtA_us ) ) dtA_us = 2000;
 	if ( std::isinf( dt_us ) ) dt_us = 5000;
 	if ( std::isinf( dtA_us ) ) dtA_us = 5000;
-//std::cout << "dt_us " << dt_us << std::endl;
 
 	double delay_us = dtA_us;
 	int stepsAccelerating  = 0;
 	for ( int j = 1; j <= maxSteps; j++ ) {
 		dSteps = startSteps + ( ( destSteps - startSteps ) * j ) / maxSteps - currentSteps_;
-		while ( ( dSteps[0] != 0 ) || ( dSteps[1] != 0 ) || ( dSteps[2] != 0 ) ) {
+		while ( ( dSteps[0] != 0 ) || ( dSteps[1] != 0 ) || ( dSteps[2] != 0 ) || ( dSteps[3] != 0 ) ) {
 			MotorCommand cmd;
 			cmd.delayBefore = delay_us;
 			//std::cout << "   .. " << delay_us << "us" << std::endl;
-			for ( int i = 0; i < 3; i++ ) {
+			for ( int i = 0; i < 4; i++ ) {
 				if ( dSteps[i] > 0 ) {
 					cmd.steps[i] = 1;
 					dSteps[i]--;
@@ -194,7 +191,7 @@ void Machine::setMotorMoves( std::shared_ptr < i_MotorMoves > _motorMoves ) {
 void Machine::setCoordinateSystem( std::shared_ptr < tp::coord::i_CoordTranslate > _coordTranslator ) {
 	coordTranslator_ = _coordTranslator;
 
-	minimalStepMm = coordTranslator_.get()->translate( Steps( 1, 1, 1 ) );
+	minimalStepMm = coordTranslator_.get()->translate( Steps( 1, 1, 1, 1 ) );
 }
 
 int Machine::waitForEndstopTrigger() {
@@ -209,7 +206,7 @@ int Machine::waitForEndstopTrigger() {
 		prevState = state;
 
 		if ( doBreak ) {
-			std::cout << "break execution. Throwing BreakException!" << std::endl;
+			//std::cout << "break execution. Throwing BreakException!" << std::endl;
 			doBreak = false;
 			throw BreakException();
 		}

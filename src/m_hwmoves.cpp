@@ -50,7 +50,7 @@ namespace motor {
 class MotorMoves : public i_MotorMoves {
 protected:
 	std::atomic_bool paused_;
-	int _steps[3];
+	int _steps[4];
 	// this objec does not own motors, it just takes pointers
 	i_Stepper *_motors_p;
 	i_Spindle *_spindle_p;
@@ -126,16 +126,14 @@ void MotorMoves::wait_finished() {
 	command.commands = MotorCommand::Command::nop;
 	_commands.push ( command );
 	_commands.waitEmpty();
-//	std::this_thread::sleep_for ( std::chrono::microseconds( 10000000 ) );
-	//std::unique_lock<std::mutex> lock( m_steps_ );
 }
 Steps MotorMoves::steps_from_origin() {
 	std::unique_lock<std::mutex> l( m_steps_ );
-	return Steps( _steps[0], _steps[1], _steps[2] );
+	return Steps( _steps[0], _steps[1], _steps[2], _steps[3] );
 }
 void MotorMoves::steps_from_origin( Steps s ) {
 	std::unique_lock<std::mutex> l( m_steps_ );
-	for ( int i = 0; i < 3; i++ ) _steps[i] = s[i];
+	for ( int i = 0; i < 4; i++ ) _steps[i] = s[i];
 }
 
 void MotorMoves::reset_origin() {
@@ -143,6 +141,7 @@ void MotorMoves::reset_origin() {
 	_steps[0] = 0;
 	_steps[1] = 0;
 	_steps[2] = 0;
+	_steps[3] = 0;
 }
 
 int MotorMoves::get_min_step_time_us() {
@@ -219,7 +218,7 @@ void MotorMoves::worker( MotorMoves *pThis ) {
 
 }
 
-MotorMoves::MotorMoves( i_Stepper *motors_, i_Spindle *spindle_, i_Buttons *buttons_,  int minStepTime_ ) : _steps {0, 0, 0}, _commands( 400 ) {
+MotorMoves::MotorMoves( i_Stepper *motors_, i_Spindle *spindle_, i_Buttons *buttons_,  int minStepTime_ ) : _steps {0, 0, 0, 0}, _commands( 400 ) {
 	_motors_p = motors_;
 	_spindle_p = spindle_;
 	_buttons_p = buttons_;
@@ -227,9 +226,10 @@ MotorMoves::MotorMoves( i_Stepper *motors_, i_Spindle *spindle_, i_Buttons *butt
 	_minStepTime = minStepTime_;
 
 	worker_thread_ = std::thread( worker, this );
+	std::this_thread::sleep_until ( steady_clock::now() + std::chrono::microseconds( 2000 ) );
 }
 
-MotorMoves::MotorMoves( p_Stepper motors_p, p_Spindle spindle_p, p_Buttons buttons_p,  int minStepTime_ ) : _steps {0, 0, 0}, _commands( 400 ) {
+MotorMoves::MotorMoves( p_Stepper motors_p, p_Spindle spindle_p, p_Buttons buttons_p,  int minStepTime_ ) : _steps {0, 0, 0, 0}, _commands( 400 ) {
 	_motors_sp = motors_p;
 	_spindle_sp = spindle_p;
 	_buttons_sp = buttons_p;
@@ -242,7 +242,7 @@ MotorMoves::MotorMoves( p_Stepper motors_p, p_Spindle spindle_p, p_Buttons butto
 }
 
 MotorMoves::~MotorMoves() {
-	_commands.push ( {1, {0, 0, 0}, MotorCommand::Command::halt } );
+	_commands.push ( {1, {0, 0, 0, 0}, MotorCommand::Command::halt } );
 	worker_thread_.join();
 }
 

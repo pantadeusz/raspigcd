@@ -21,7 +21,7 @@ public:
     tp::motor::Steps getSteps();
     tp::coord::Position getPosition();
     tp::coord::Position getPosition(const tp::motor::Steps &s);
-    void doStep(std::array<signed char, 3> &s, bool recordTimes); // steps callback
+    void doStep(std::array<signed char, 4> &s, bool recordTimes); // steps callback
     MachineSimulationState() {
         mockSteps = {0,0,0};
     }

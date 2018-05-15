@@ -119,7 +119,7 @@ public:
 	/**
 	    * executes one motor step. takes value - number of steps to perform in given direction (positive or negative). Warning - for smooth work it should be max 1 step
 	    */
-	void step( std::array<signed char, 3> &dir );
+	void step( std::array<signed char, 4> &dir );
 	/**
 	    * enable or disable stepper motor
 	    */
@@ -128,7 +128,6 @@ public:
 	bool is_enabled();
 
 	virtual ~stepper_pi() {
-		std::cout << "stepper_pi destructor" << std::endl;
 	}
 };
 
@@ -146,7 +145,6 @@ public:
 
 	void setSpeed( double v );
 	virtual ~spindle_pi() {
-		std::cout << "spindle_pi destructor" << std::endl;
 	}
 };
 
@@ -194,7 +192,8 @@ int stepper_pi::configure( const std::vector  <StepperPiConfig> &conf ) {
 	return 0;
 }
 
-void stepper_pi::step( std::array<signed char, 3> &dirs ) {
+void stepper_pi::step( std::array<signed char, 4> &dirs ) {
+	if (dirs[3] != 0) throw "this should not happen";
 	for ( unsigned i = 0; i < dirs.size(); i++ ) {
 		if ( dirs[i] > 0 ) {
 			GPIO_SET = 1 << conf[i].dir;
@@ -311,7 +310,7 @@ int buttons_pi::configure( const ButtonsPiConfig &c ) {
 	INP_GPIO( c.t );
 //	std::cout << "GPIO_PULL" << ((unsigned long)GPIO_PULL) << std::endl;
 //	GPIO_PULL = (GPIO_PULL) | (1 << c.x) | (1 << c.y) | (1 << c.z) | (1 << c.t);
-	std::cout << "pulls:  " << c.x << " " << c.y << " " << c.z << " " << c.t << std::endl;
+	std::cout << "button pulls:  " << c.x << " " << c.y << " " << c.z << " " << c.t << std::endl;
 
 
 	// enable pull-up on GPIO24&25
@@ -332,20 +331,6 @@ int buttons_pi::configure( const ButtonsPiConfig &c ) {
 	for (int i = 0; i < 1500; i++) {
 		cnt += i;
 	}
-//	for (int i = 0; i < 10; i++) {
-//	std::cout << 
-//		((GPIO_READ(c.x))>>(c.x)) << ";" << 
-//		((GPIO_READ(c.y))>>(c.y)) << ";" << 
-//		((GPIO_READ(c.z))>>(c.z)) << ";" << 
-//		((GPIO_READ(c.t))>>(c.t)) << ";" << std::endl;
-//
-//	std::cout << 
-//		(GPIO_READ(c.x)) << ";" << 
-//		(GPIO_READ(c.y)) << ";" << 
-//		(GPIO_READ(c.z)) << ";" << 
-//		(GPIO_READ(c.t)) << ";" << std::endl;
-//	//sleep(1);
-//	}
 	return cnt & 0;
 }
 std::array<unsigned char,4> buttons_pi::getButtons( ) {
@@ -378,13 +363,9 @@ p_Spindle SpindlePi_factory( const SpindlePiConfig stc ) {
 }
 
 p_Buttons ButtonsPi_factory( const  ButtonsPiConfig stc ) {
-	std::cout << "factory.. *a" << std::endl;
 	buttons_pi *a = new buttons_pi();
-	std::cout << "factory.. ret" << std::endl;
 	p_Buttons ret( a );
-	std::cout << "factory.. configure" << std::endl;
 	a->configure( stc );
-	std::cout << "factory.. return" << std::endl;
 	return ret;
 }
 

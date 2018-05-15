@@ -47,7 +47,7 @@ SCENARIO( "Test for GcodeEngine class", "[gcd][GcodeEngine]" ) {
 	Mock<i_Buttons> buttonsMock;
 
 	MachineSimulationState mState;
-	mState.ctranslate = CoordTranslate_corexy_factory( 10,10,10 ) ;
+	mState.ctranslate = CoordTranslate_corexy_factory( {10,10,10,10} ) ;
 
 	auto prevTime = std::chrono::high_resolution_clock::now();
 	std::shared_ptr < i_MotorMoves > p_motor = MotorMoves_factory( &stepperMock.get(), &spindleMock.get(), &buttonsMock.get(), 50 );
@@ -76,7 +76,7 @@ SCENARIO( "Test for GcodeEngine class", "[gcd][GcodeEngine]" ) {
 	GIVEN( "the coordinate translation and hardware motors are given" ) {
 
 		When( Method( stepperMock,enabled ) ).AlwaysReturn();
-		When( Method( stepperMock,step ) ).AlwaysDo( [&]( std::array<signed char, 3> &steps ) {
+		When( Method( stepperMock,step ) ).AlwaysDo( [&]( std::array<signed char, 4> &steps ) {
 			mState.doStep( steps, true );
 		} );
 		When( Method( spindleMock, setSpeed ) ).AlwaysReturn();
