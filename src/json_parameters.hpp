@@ -18,7 +18,6 @@
 
 */
 
-
 #ifndef __JSON_PARAMETERS_TOGCODE_HPP___
 #define __JSON_PARAMETERS_TOGCODE_HPP___
 
@@ -26,11 +25,7 @@
 
 namespace tp {
 namespace togcode {
-
-
 }
-}
-
-
+} // namespace tp
 
 #endif

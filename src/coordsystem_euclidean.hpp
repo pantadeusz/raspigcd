@@ -18,36 +18,30 @@
 
 */
 
-
 #ifndef __COORDSYSTEM_SIMPLE_HPP___
-#define  __COORDSYSTEM_SIMPLE_HPP___
+#define __COORDSYSTEM_SIMPLE_HPP___
 
-#include "m_hwmoves.hpp"
 #include "coordsystem.hpp"
+#include "m_hwmoves.hpp"
 #include <vector>
 
 namespace tp {
 namespace coord {
 
-using tp::motor::Steps;
+    using tp::motor::Steps;
 
-class CoordTranslateSimple : public i_CoordTranslate {
-protected:
-	double mX, mY, mZ, mT;
-	double sX, sY, sZ, sT;
-public:
-	CoordTranslateSimple( const std::array<double,4> stepsPerMM_, const Position scaleAxis );
-	Steps translate( const Position &pos );
-	Position translate( const Steps &steps ) ;
-};
+    class CoordTranslateSimple : public i_CoordTranslate {
+    protected:
+        double mX, mY, mZ, mT;
+        double sX, sY, sZ, sT;
 
-}
-}
+    public:
+        CoordTranslateSimple(const std::array<double, 4> stepsPerMM_, const Position scaleAxis);
+        Steps translate(const Position& pos);
+        Position translate(const Steps& steps);
+    };
 
-
+} // namespace coord
+} // namespace tp
 
 #endif
-
-
-
-
