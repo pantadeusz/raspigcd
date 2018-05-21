@@ -1,6 +1,8 @@
-# Raspberry Pi G-CODE interpreter
+# Raspberry Pi G-CODE interpreter 
 
 by Tadeusz Puźniakowski [frezia.pl](http://frezia.pl) [puzniakowski.pl](http://puzniakowski.pl)
+
+[![Build Status](https://travis-ci.org/pantadeusz/raspigcd.svg?branch=master)](https://travis-ci.org/pantadeusz/raspigcd)
 
 ## Short description
 
