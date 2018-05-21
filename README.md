@@ -31,7 +31,7 @@ You need the following dependencies to build this project:
 
 ## Build
 
-You can build the program on any Linux distribution. If the host is not Raspberry PI, then the build would generate everything, but this will not work. You will be able to only execute gcode to generate image.
+You can build the program on any Linux distribution. If the host is not Raspberry PI, then you will be able to only execute gcode to generate image (see the example below).
 
 ### Makefile
 
@@ -61,13 +61,22 @@ you can set the install directory during cmake configuration
 cmake -DCMAKE_INSTALL_PREFIX:PATH=./build/raspigcd ../
 ```
 
-## Running
+# Running
 
 The application can be used as a library (libraspigcd.so) or as a standalone program (app). Standalone app can be used to execute G-CODE in the following way:
+
+(for fake gcode execution):
 
 ```bash
 ./build/app tests/unit_gcd_engine_gcdtest.gcd /config/GcodeEngine/simulationFileOutput="tmp.png"
 ```
+
+(for gcode execution on raspberry pi 2 or 3):
+
+```bash
+sudo ./build/app tests/unit_gcd_engine_gcdtest.gcd
+```
+
 
 It takes configuration from defaults.json from current working directory. Then it overwrites it with config.json from current directory. Then the specific configuration options are overwritten by command line arguments (see above).
 
