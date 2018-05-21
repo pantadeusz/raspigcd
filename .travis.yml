@@ -5,15 +5,15 @@ compiler:
 matrix:
   include:
     # works on Precise and Trusty
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-5
-      env:
-         - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
+    ## g++5 not supported ## - os: linux
+    ## g++5 not supported ##   addons:
+    ## g++5 not supported ##     apt:
+    ## g++5 not supported ##       sources:
+    ## g++5 not supported ##         - ubuntu-toolchain-r-test
+    ## g++5 not supported ##       packages:
+    ## g++5 not supported ##         - g++-5
+    ## g++5 not supported ##   env:
+    ## g++5 not supported ##      - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
 
     # works on Precise and Trusty
     - os: linux
