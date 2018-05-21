@@ -45,7 +45,9 @@ addons:
       - nodejs
       - cmake-data
       - cmake
-      
+
+install: rm -Rf ~/.cppdeps
+
 script:
     - mkdir -p build; cd build; cmake ..; make; make check
 
