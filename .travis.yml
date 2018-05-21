@@ -1,0 +1,57 @@
+compiler:
+  - clang
+  - gcc
+
+matrix:
+  include:
+    # works on Precise and Trusty
+    ## g++5 not supported ## - os: linux
+    ## g++5 not supported ##   addons:
+    ## g++5 not supported ##     apt:
+    ## g++5 not supported ##       sources:
+    ## g++5 not supported ##         - ubuntu-toolchain-r-test
+    ## g++5 not supported ##       packages:
+    ## g++5 not supported ##         - g++-5
+    ## g++5 not supported ##   env:
+    ## g++5 not supported ##      - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
+
+    # works on Precise and Trusty
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      env:
+        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
+
+    # works on Precise and Trusty
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+      env:
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+
+before_install:
+    - eval "${MATRIX_EVAL}"
+
+addons:
+  apt:
+    sources:
+      - george-edison55-precise-backports
+    packages:
+      - mercurial
+      - nodejs
+      - cmake-data
+      - cmake
+
+install: rm -Rf ~/.cppdeps
+
+script:
+    - eval "${MATRIX_EVAL}"; echo $CC; echo $CXX; echo "${MATRIX_EVAL}"; mkdir -p build; cd build; cmake -DCMAKE_CXX_COMPILER=$CXX ..; make; make check
+
