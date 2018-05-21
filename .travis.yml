@@ -49,5 +49,6 @@ addons:
 install: rm -Rf ~/.cppdeps
 
 script:
+    - eval "${MATRIX_EVAL}"
     - mkdir -p build; cd build; cmake ..; make; make check
 
