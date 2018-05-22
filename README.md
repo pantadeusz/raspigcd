@@ -78,7 +78,7 @@ sudo ./build/app tests/unit_gcd_engine_gcdtest.gcd
 ```
 
 
-It takes configuration from defaults.json from current working directory. Then it overwrites it with config.json from current directory. Then the specific configuration options are overwritten by command line arguments (see above).
+It takes default configuration from defaults.json from current working directory. Next it takes options from config.json and updates parameters from it. Parameters from CLI overwrites any other options (see example above).
 
 
 ## Tests
