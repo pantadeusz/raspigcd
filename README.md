@@ -14,7 +14,7 @@ The reason why I created this app was that I wanted to have real-time control ov
 
 If you would like to obtain different license, then feel free to contact me.
 
-You can see how does it work at [YouTube](https://youtu.be/KTBCnEE6s4s).
+You can see how does it work at [YouTube](https://www.youtube.com/watch?v=Nr__NRT2n3w).
 
 
 ## Dependencies
