@@ -53,5 +53,5 @@ addons:
 install: rm -Rf ~/.cppdeps
 
 script:
-    - eval "${MATRIX_EVAL}"; echo $CC; echo $CXX; echo "${MATRIX_EVAL}"; mkdir -p build; cd build; cmake -DCMAKE_CXX_COMPILER=$CXX ..; make; make check
+    - eval "${MATRIX_EVAL}"; echo $CC; echo $CXX; echo "${MATRIX_EVAL}"; mkdir -p build; cd build; cmake -DCMAKE_CXX_COMPILER=$CXX ..; make && make check
 
