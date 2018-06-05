@@ -34,6 +34,8 @@ You can run it to simulate execution of G-Code
 
 # Configuration file
 
+The configuration file is taken from current working directory and should be named *config.json*.
+
 Pins are numbered in BCM numbering, not WiringPi!
 
 Configuration file have the following fields:
