@@ -4,6 +4,10 @@ by Tadeusz Puźniakowski [frezia.pl](http://frezia.pl) [puzniakowski.pl](http://
 
 [![Build Status](https://travis-ci.org/pantadeusz/raspigcd.svg?branch=master)](https://travis-ci.org/pantadeusz/raspigcd)
 
+## Docs
+
+  * [Quick start guide](doc/GUIDE.md)
+
 ## Short description
 
 This is the gcd interpreter that works directly on Raspberry Pi 2 and 3. For it to work you need only stepsticks. No additional Arduino based board.
