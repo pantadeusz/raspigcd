@@ -54,7 +54,7 @@ using tp::motor::Steps;
 
 int main(int argc, char** argv)
 {
-    static std::string config = R "({" config ": {}})";
+    static std::string config = R"({"config": {}})";
     {
         std::ifstream configFile("defaults.json");
         if (configFile.is_open()) {
@@ -77,11 +77,11 @@ int main(int argc, char** argv)
             std::string jpath = arg.substr(0, arg.find('='));
             std::string jval = arg.substr(arg.find('=') + 1);
             nlohmann::json cfg = gcdwconfig;
-            nlohmann::json j_patch = R "([])" _json;
+            nlohmann::json j_patch = R"([])"_json;
             j_patch[0]["op"] = "replace";
             j_patch[0]["path"] = jpath;
             try {
-                j_patch[0]["value"] = std::stod(jval);
+                j_patch[0]["value"] = std::stof(jval);
             } catch (...) {
                 j_patch[0]["value"] = jval;
             }
