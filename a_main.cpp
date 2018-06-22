@@ -18,16 +18,7 @@
 
 */
 
-#include "i_CoordTranslate.hpp"
-#include "i_CoordTranslate_factory.hpp"
-
-#include "gcd_engine.hpp"
-#include "i_MotorMoves_factory.hpp"
-#include "i_Stepper.hpp"
-#include "i_Spindle.hpp"
-#include "i_Buttons.hpp"
-#include "driver_raspberry_pi.hpp"
-#include "machine.hpp"
+#include "raspigcd.hpp"
 
 #include <chrono>
 #include <cmath>
