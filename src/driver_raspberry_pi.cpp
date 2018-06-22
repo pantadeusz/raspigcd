@@ -18,7 +18,7 @@
 
 */
 
-#include "m_motor_rpi.hpp"
+#include "driver_raspberry_pi.hpp"
 
 #include <chrono>
 
@@ -69,7 +69,7 @@ int map_peripheral(struct bcm2835_peripheral* p)
         MAP_SHARED,
         p->mem_fd, // File descriptor to physical memory virtual file '/dev/mem'
         p->addr_p // Address in physical map that we want this memory block to expose
-    );
+        );
 
     if (p->map == MAP_FAILED) {
         throw std::runtime_error("map_peripheral failed");

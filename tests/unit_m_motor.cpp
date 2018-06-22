@@ -1,6 +1,8 @@
-#include "m_hwmoves.hpp"
-#include "m_motor_interface.hpp"
-#include "m_motor_rpi.hpp"
+#include "i_MotorMoves_factory.hpp"
+#include "i_Stepper.hpp"
+#include "i_Spindle.hpp"
+#include "i_Buttons.hpp"
+#include "driver_raspberry_pi.hpp"
 #include <tpcommon/img_img8.hpp>
 
 #include "tdd_helpers.hpp"

@@ -18,11 +18,10 @@
 
 */
 
-#ifndef ___GCD_COMMANDS_HPP___
-#define ___GCD_COMMANDS_HPP___
+#ifndef ___TP_GCD_GCDCOMMANDSINTERPRETER_HPP___
+#define ___TP_GCD_GCDCOMMANDSINTERPRETER_HPP___
 
-#include "machine.hpp"
-
+#include "i_Machine.hpp"
 #include <functional>
 #include <map>
 #include <string>
@@ -42,7 +41,7 @@ namespace gcd {
         double frMultiplier; // 60 for mm/min, 1 for mm/s, default is 1
         double G0speedV0; // the maximal speed that does not require acceleration
         double G0speedV0ddt; // how fast is acceleration (in microseconds per step)
-        std::map<char, std::function<std::string(std::map<char, double>&)> > executors;
+        std::map<char, std::function<std::string(std::map<char, double>&)>> executors;
 
     public:
         const double& workSpeed() const

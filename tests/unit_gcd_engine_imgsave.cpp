@@ -1,5 +1,5 @@
-#include "coordsystem.hpp"
-#include "gcd_engine.hpp"
+#include "i_CoordTranslate.hpp"
+#include "s_GcodeEngine.hpp"
 
 #include "tdd_helpers.hpp"
 #include "tpcommon/img_img8.hpp"

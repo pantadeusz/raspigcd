@@ -18,10 +18,11 @@
 
 */
 
-#ifndef __COORDSYSTEM__HPP___
-#define __COORDSYSTEM__HPP___
+#ifndef __TP_COORD_COORD_TRANSLATE_CONFIG_HPP__
+#define __TP_COORD_COORD_TRANSLATE_CONFIG_HPP__
 
-#include "m_hwmoves.hpp"
+#include "dto_CoordTranslateConfig.hpp"
+#include "dto_Steps.hpp"
 #include <tpcommon/position.hpp>
 
 #include <nlohmann/json.hpp>
@@ -56,17 +57,6 @@ namespace coord {
     std::istream& operator>>(std::istream& is, CoordTranslateConfig& value);
     bool operator==(const CoordTranslateConfig& l, const CoordTranslateConfig& r);
 
-    class i_CoordTranslate {
-    public:
-        virtual Steps translate(const Position& pos) = 0;
-        virtual Position translate(const Steps& steps) = 0;
-    };
-
-    std::shared_ptr<i_CoordTranslate> CoordTranslate_corexy_factory(const std::array<double, 4> stepsPerMM_, const Position scaleAxis = Position(1, 1, 1, 1));
-    std::shared_ptr<i_CoordTranslate> CoordTranslate_simple_factory(const std::array<double, 4> stepsPerMM_, const Position scaleAxis = Position(1, 1, 1, 1));
-    std::shared_ptr<i_CoordTranslate> CoordTranslate_factory(const CoordTranslateConfig& config);
-
 } // namespace coord
 } // namespace tp
-
 #endif

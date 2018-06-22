@@ -18,30 +18,32 @@
 
 */
 
-#ifndef __COORDSYSTEM_SIMPLE_HPP___
-#define __COORDSYSTEM_SIMPLE_HPP___
+#ifndef __TP_MOTOR_MOTORMOVES_FACTORY_HPP__
+#define __TP_MOTOR_MOTORMOVES_FACTORY_HPP__
 
-#include "coordsystem.hpp"
-#include "m_hwmoves.hpp"
+#include "i_Stepper.hpp"
+#include "i_Spindle.hpp"
+#include "i_Buttons.hpp"
+
+#include "dto_Steps.hpp"
+#include "dto_MotorCommand.hpp"
+#include "s_SafeQueue.hpp"
+#include "i_MotorMoves.hpp"
+
+#include <array>
+#include <iostream>
 #include <vector>
 
+#include <chrono>
+#include <thread>
+
 namespace tp {
-namespace coord {
+namespace motor {
 
-    using tp::motor::Steps;
+    std::shared_ptr<i_MotorMoves> MotorMoves_factory(i_Stepper* motors_, i_Spindle* spindle_, i_Buttons* buttons_, int minStepTime_);
+    std::shared_ptr<i_MotorMoves> MotorMoves_factory(p_Stepper motors_, p_Spindle spindle_, p_Buttons buttons_, int minStepTime_);
 
-    class CoordTranslateSimple : public i_CoordTranslate {
-    protected:
-        double mX, mY, mZ, mT;
-        double sX, sY, sZ, sT;
-
-    public:
-        CoordTranslateSimple(const std::array<double, 4> stepsPerMM_, const Position scaleAxis);
-        Steps translate(const Position& pos);
-        Position translate(const Steps& steps);
-    };
-
-} // namespace coord
+} // namespace motor
 } // namespace tp
 
 #endif

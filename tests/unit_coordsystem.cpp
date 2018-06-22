@@ -1,6 +1,7 @@
-#include "coordsystem.hpp"
-#include "coordsystem_corexy.hpp"
-#include "coordsystem_euclidean.hpp"
+#include "i_CoordTranslate.hpp"
+#include "s_CoordTranslateCoreXY.hpp"
+#include "s_CoordTranslateSimple.hpp"
+#include "i_CoordTranslate_factory.hpp"
 
 #include <catch.hpp>
 #include <fakeit.hpp>

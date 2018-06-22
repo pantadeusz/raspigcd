@@ -1,8 +1,10 @@
-#include "coordsystem.hpp"
-#include "gcd_commands.hpp"
+#include "i_CoordTranslate.hpp"
+#include "i_CoordTranslate_factory.hpp"
+#include "s_GcdCommandsInterpreter.hpp"
 
 #include "tdd_helpers.hpp"
 #include "tpcommon/img_img8.hpp"
+#include "s_Machine.hpp"
 
 #include <catch.hpp>
 #include <fakeit.hpp>

@@ -1,6 +1,9 @@
-#include "coordsystem.hpp"
-#include "m_hwmoves.hpp"
-#include "machine.hpp"
+#include "i_CoordTranslate.hpp"
+#include "i_CoordTranslate_factory.hpp"
+
+#include "i_MotorMoves_factory.hpp"
+#include "s_Machine.hpp"
+
 #include <tpcommon/img_img8.hpp>
 
 #include "tdd_helpers.hpp"

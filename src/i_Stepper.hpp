@@ -18,8 +18,8 @@
 
 */
 
-#ifndef __M_MOTOR_INTERFACE__HPP__
-#define __M_MOTOR_INTERFACE__HPP__ 1
+#ifndef __TP_MOTOR_I_STEPPER_HPP__
+#define __TP_MOTOR_I_STEPPER_HPP__
 
 #include <iostream>
 #include <memory>
@@ -45,26 +45,6 @@ namespace motor {
     };
 
     typedef std::shared_ptr<i_Stepper> p_Stepper;
-
-    class i_Spindle {
-    public:
-        /**
-	 * set the spindle speed: 0..1, where 0 means stopped, and 1 means CW rotation at maximum speed
-	 */
-        virtual void setSpeed(double v) = 0;
-    };
-
-    typedef std::shared_ptr<i_Spindle> p_Spindle;
-
-    class i_Buttons {
-    public:
-        /**
-	 * set the spindle speed: 0..1, where 0 means stopped, and 1 means CW rotation at maximum speed
-	 */
-        virtual std::array<unsigned char, 4> getButtons() = 0;
-    };
-
-    typedef std::shared_ptr<i_Buttons> p_Buttons;
 
 } // namespace motor
 } // namespace tp

@@ -18,38 +18,20 @@
 
 */
 
-#ifndef __M_MOTOR_RASPBERRY_PI_HPP___
-#define __M_MOTOR_RASPBERRY_PI_HPP___ 1
+#ifndef __TP_MOTOR_DTO_STEPPERPICONFIG__
+#define __TP_MOTOR_DTO_STEPPERPICONFIG__
 
-#include "m_motor_interface.hpp"
 #include <nlohmann/json.hpp>
 
 namespace tp {
 namespace motor {
-
     struct StepperPiConfig {
         unsigned int step;
         unsigned int dir;
         unsigned int en;
     };
-    struct SpindlePiConfig {
-        unsigned int pin;
-        int servopwm;
-    };
-    struct ButtonsPiConfig {
-        unsigned int x;
-        unsigned int y;
-        unsigned int z;
-        unsigned int t;
-    };
-
     void to_json(nlohmann::json& j, const StepperPiConfig& p);
     void from_json(const nlohmann::json& j, StepperPiConfig& p);
-    void to_json(nlohmann::json& j, const SpindlePiConfig& p);
-    void from_json(const nlohmann::json& j, SpindlePiConfig& p);
-    void to_json(nlohmann::json& j, const ButtonsPiConfig& p);
-    void from_json(const nlohmann::json& j, ButtonsPiConfig& p);
-
     inline bool operator==(const StepperPiConfig& l, const StepperPiConfig& r)
     {
         return (l.step == r.step) && (l.dir == r.dir) && (l.en == r.en);
@@ -60,12 +42,6 @@ namespace motor {
         os << value.step << ", " << value.dir << ", " << value.en;
         return os;
     }
-
-    p_Stepper StepperPi_factory(const std::vector<StepperPiConfig> stc);
-    p_Spindle SpindlePi_factory(const SpindlePiConfig stc);
-    p_Buttons ButtonsPi_factory(const ButtonsPiConfig stc);
-    // w_Stepper wStepperPi_factory(const StepperPiConfig stc);
-
 } // namespace motor
 } // namespace tp
 

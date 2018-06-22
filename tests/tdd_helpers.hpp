@@ -1,11 +1,15 @@
 #ifndef __TDD_HELPERS_HPP____
 #define __TDD_HELPERS_HPP____
 
-#include "coordsystem.hpp"
+#include "i_CoordTranslate.hpp"
 #include <catch.hpp>
 #include <fakeit.hpp>
 #include <list>
-#include <m_motor_interface.hpp>
+#include "i_Stepper.hpp"
+#include "i_Spindle.hpp"
+#include "i_Buttons.hpp"
+#include <chrono>
+
 
 namespace tp {
 namespace helpers {

@@ -18,9 +18,9 @@
 
 */
 
-#include "gcd_commands.hpp"
+#include "s_GcdCommandsInterpreter.hpp"
 
-#include "machine.hpp"
+#include "s_Machine.hpp"
 
 #include <functional>
 #include <utility> // std::pair
