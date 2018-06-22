@@ -18,8 +18,8 @@
 
 */
 
-#ifndef __MACHINE_PI__HPP____
-#define __MACHINE_PI__HPP____
+#ifndef __TP_GCD_GCODEENGINE_HPP__
+#define __TP_GCD_GCODEENGINE_HPP__
 
 #include "s_GcdCommandsInterpreter.hpp"
 #include "i_Stepper.hpp"
