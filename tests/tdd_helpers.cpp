@@ -1,7 +1,9 @@
 
 #include "tdd_helpers.hpp"
-#include "coordsystem.hpp"
-#include "m_motor_interface.hpp"
+#include "i_CoordTranslate.hpp"
+#include "i_Stepper.hpp"
+#include "i_Spindle.hpp"
+#include "i_Buttons.hpp"
 #include "tpcommon/img_img8.hpp"
 #include <iostream>
 #include <stdexcept>

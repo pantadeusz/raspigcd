@@ -18,10 +18,11 @@
 
 */
 
-#include "m_hwmoves.hpp"
+#include "i_MotorMoves_factory.hpp"
 
-#include "m_motor_interface.hpp"
-
+#include "i_Stepper.hpp"
+#include "i_Spindle.hpp"
+#include "i_Buttons.hpp"
 #include <atomic>
 #include <condition_variable>
 #include <cstring>

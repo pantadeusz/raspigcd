@@ -42,7 +42,7 @@ namespace gcd {
         double frMultiplier; // 60 for mm/min, 1 for mm/s, default is 1
         double G0speedV0; // the maximal speed that does not require acceleration
         double G0speedV0ddt; // how fast is acceleration (in microseconds per step)
-        std::map<char, std::function<std::string(std::map<char, double>&)> > executors;
+        std::map<char, std::function<std::string(std::map<char, double>&)>> executors;
 
     public:
         const double& workSpeed() const

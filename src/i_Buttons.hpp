@@ -18,30 +18,28 @@
 
 */
 
-#ifndef __COORDSYSTEM_COREXY_HPP___
-#define __COORDSYSTEM_COREXY_HPP___
+#ifndef __TP_MOTOR_I_BUTTONS_HPP__
+#define __TP_MOTOR_I_BUTTONS_HPP__ 1
 
-#include "coordsystem.hpp"
-#include "m_hwmoves.hpp"
+#include <iostream>
+#include <memory>
 #include <vector>
 
 namespace tp {
-namespace coord {
 
-    using tp::motor::Steps;
+namespace motor {
 
-    class CoordTranslateCoreXY : public i_CoordTranslate {
-    protected:
-        double mX, mY, mZ, mT;
-        double sX, sY, sZ, sT;
-
+    class i_Buttons {
     public:
-        CoordTranslateCoreXY(const std::array<double, 4> stepsPerMM_, const Position scaleAxis);
-        Steps translate(const Position& pos);
-        Position translate(const Steps& steps);
+        /**
+	 * set the spindle speed: 0..1, where 0 means stopped, and 1 means CW rotation at maximum speed
+	 */
+        virtual std::array<unsigned char, 4> getButtons() = 0;
     };
 
-} // namespace coord
+    typedef std::shared_ptr<i_Buttons> p_Buttons;
+
+} // namespace motor
 } // namespace tp
 
 #endif

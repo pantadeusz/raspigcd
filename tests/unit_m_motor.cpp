@@ -1,5 +1,7 @@
-#include "m_hwmoves.hpp"
-#include "m_motor_interface.hpp"
+#include "i_MotorMoves_factory.hpp"
+#include "i_Stepper.hpp"
+#include "i_Spindle.hpp"
+#include "i_Buttons.hpp"
 #include "m_motor_rpi.hpp"
 #include <tpcommon/img_img8.hpp>
 

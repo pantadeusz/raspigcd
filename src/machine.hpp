@@ -21,8 +21,8 @@
 #ifndef __MACHINE__HPP____
 #define __MACHINE__HPP____
 
-#include "coordsystem.hpp"
-#include "m_hwmoves.hpp"
+#include "i_CoordTranslate.hpp"
+#include "i_MotorMoves_factory.hpp"
 #include <atomic>
 
 namespace tp {

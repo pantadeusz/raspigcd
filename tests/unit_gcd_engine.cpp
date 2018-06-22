@@ -1,4 +1,6 @@
-#include "coordsystem.hpp"
+#include "i_CoordTranslate.hpp"
+#include "i_CoordTranslate_factory.hpp"
+
 #include "gcd_engine.hpp"
 
 #include "tdd_helpers.hpp"

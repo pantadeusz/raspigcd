@@ -18,10 +18,14 @@
 
 */
 
-#include "coordsystem.hpp"
+#include "i_CoordTranslate.hpp"
+#include "i_CoordTranslate_factory.hpp"
+
 #include "gcd_engine.hpp"
-#include "m_hwmoves.hpp"
-#include "m_motor_interface.hpp"
+#include "i_MotorMoves_factory.hpp"
+#include "i_Stepper.hpp"
+#include "i_Spindle.hpp"
+#include "i_Buttons.hpp"
 #include "m_motor_rpi.hpp"
 #include "machine.hpp"
 

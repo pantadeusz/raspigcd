@@ -21,7 +21,9 @@
 #ifndef __M_MOTOR_RASPBERRY_PI_HPP___
 #define __M_MOTOR_RASPBERRY_PI_HPP___ 1
 
-#include "m_motor_interface.hpp"
+#include "i_Stepper.hpp"
+#include "i_Spindle.hpp"
+#include "i_Buttons.hpp"
 #include <nlohmann/json.hpp>
 
 namespace tp {
