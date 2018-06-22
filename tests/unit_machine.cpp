@@ -2,7 +2,7 @@
 #include "i_CoordTranslate_factory.hpp"
 
 #include "i_MotorMoves_factory.hpp"
-#include "machine.hpp"
+#include "s_Machine.hpp"
 
 #include <tpcommon/img_img8.hpp>
 
