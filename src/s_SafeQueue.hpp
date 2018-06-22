@@ -1,3 +1,27 @@
+/*
+
+    Raspberry Pi G-CODE interpreter
+    Copyright (C) 2018  Tadeusz Puźniakowski puzniakowski.pl
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
+    The SafeQueue was described in article https://juanchopanzacpp.wordpress.com/2013/02/26/concurrent-queue-c11/
+    The most of the code is taken from there, but I made some major updates to make it work with the rest of my code
+
+*/
+
 #ifndef __TP_MOTOR_SAFEQUEUE_HPP__
 #define __TP_MOTOR_SAFEQUEUE_HPP__
 #include <queue>
@@ -6,7 +30,6 @@
 
 namespace tp {
 namespace motor {
-    // the SafeQueue was described inarticle https://juanchopanzacpp.wordpress.com/2013/02/26/concurrent-queue-c11/
     template <typename T>
     class SafeQueue {
     private:
