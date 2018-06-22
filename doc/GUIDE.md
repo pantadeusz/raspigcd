@@ -32,6 +32,11 @@ You can run it to simulate execution of G-Code
      /config/GcodeEngine/dpi=600
 ```
 
+# API Quick start
+
+See a_main.cpp - it contains simple code that loads the gcode from file and then executes it 
+on machine. The code is heavily commented, so it should be easy to get started.
+
 # Configuration file
 
 The configuration file is taken from current working directory and should be named *config.json*.
