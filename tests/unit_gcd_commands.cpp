@@ -4,6 +4,7 @@
 
 #include "tdd_helpers.hpp"
 #include "tpcommon/img_img8.hpp"
+#include "s_Machine.hpp"
 
 #include <catch.hpp>
 #include <fakeit.hpp>

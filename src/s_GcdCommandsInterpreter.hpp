@@ -21,7 +21,7 @@
 #ifndef ___TP_GCD_GCDCOMMANDSINTERPRETER_HPP___
 #define ___TP_GCD_GCDCOMMANDSINTERPRETER_HPP___
 
-#include "s_Machine.hpp"
+#include "i_Machine.hpp"
 #include <functional>
 #include <map>
 #include <string>

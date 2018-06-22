@@ -20,6 +20,7 @@
 
 #include "s_GcodeEngine.hpp"
 #include "driver_raspberry_pi.hpp"
+#include "s_Machine.hpp"
 #include <list>
 #include <nlohmann/json.hpp>
 #include <regex>

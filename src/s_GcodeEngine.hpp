@@ -22,18 +22,13 @@
 #define __TP_GCD_GCODEENGINE_HPP__
 
 #include "s_GcdCommandsInterpreter.hpp"
-#include "i_Stepper.hpp"
-#include "i_Spindle.hpp"
-#include "i_Buttons.hpp"
-#include "driver_raspberry_pi.hpp"
-
 #include "dto_GcodeEngineConfig.hpp"
 
 #include <istream>
 #include <string>
 #include <vector>
 
-#include <nlohmann/json.hpp>
+// #include <nlohmann/json.hpp>
 
 namespace tp {
 namespace gcd {

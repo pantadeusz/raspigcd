@@ -18,6 +18,19 @@
 
 */
 
+/**
+ * @brief This is the example of how to use raspigcd library
+ * 
+ * The main application for executing g-code on Raspberry Pi 2 and newer. It
+ * shows how to use raspigcd library, especially GcodeEngine object to run gcode.
+ * 
+ * @file a_main.cpp
+ * @author your name
+ * @date 2018-06-23
+ */
+
+
+
 #include "raspigcd.hpp"
 
 #include <chrono>
@@ -29,26 +42,10 @@
 using std::chrono::seconds; // nanoseconds, system_clock, seconds
 using std::this_thread::sleep_for; // sleep_for, sleep_until
 
-using tp::motor::i_Stepper;
-using tp::motor::p_Stepper;
-using tp::motor::StepperPi_factory;
-using tp::motor::StepperPiConfig;
-
-using tp::motor::i_Spindle;
-using tp::motor::p_Spindle;
-using tp::motor::SpindlePi_factory;
-using tp::motor::SpindlePiConfig;
-
-using tp::coord::CoordTranslate_corexy_factory;
-using tp::coord::Position;
-using tp::motor::i_MotorMoves;
-using tp::motor::Machine;
-using tp::motor::MotorCommand;
-using tp::motor::MotorMoves_factory;
-using tp::motor::Steps;
 
 int main(int argc, char** argv)
 {
+    /// Loading the configuration. First load some defaults from local file
     static std::string config = R"({"config": {}})";
     {
         std::ifstream configFile("defaults.json");
@@ -56,6 +53,7 @@ int main(int argc, char** argv)
             config = std::string((std::istreambuf_iterator<char>(configFile)), std::istreambuf_iterator<char>());
         }
     }
+    /// Loading the configuration from config.json - this is custom config overwriting all the defaults from defaults.json
     {
         std::ifstream configFile("config.json");
         if (configFile.is_open()) {
@@ -63,10 +61,11 @@ int main(int argc, char** argv)
         }
     }
 
+    /// prepare configuration object from configuration string
     tp::gcd::GcodeEngineConfig gcdwconfig = nlohmann::json::parse(config);
 
     if (argc > 1) {
-
+        // parse options, especially find some usefull json paths to overwrite config options
         for (int i = 2; i < argc; i++) {
             std::string arg(argv[i]);
             std::string jpath = arg.substr(0, arg.find('='));
@@ -80,14 +79,29 @@ int main(int argc, char** argv)
             } catch (...) {
                 j_patch[0]["value"] = jval;
             }
+            // overwrite selected argument
             gcdwconfig = cfg.patch(j_patch);
         }
+        /// print config - for reference and for someone wanting to get default or modified config file
         std::cout << gcdwconfig << std::endl;
 
+        /// *************************************************************** ///
+        /// Here is the magic - create gcd engine for g-code interpretation ///
+        /// *************************************************************** ///
         tp::gcd::GcodeEngine gcdw(gcdwconfig);
-        std::ifstream g(argv[1]);
+        std::ifstream g(argv[1]); // file to read - gcode
         if (g.is_open()) {
-            gcdw.execGcodeProgram(g, [](int l, const std::string& c, const std::string& r) { std::cout << "(" << l << ") " << c << " -> " << r << std::endl; }, [](int code) { std::cout << "gcode finished " << code << std::endl; });
+            /// execute selected file. Note that the lambda provided is used
+            /// only to print debug information. You can safely remove it.
+            /// it is also possible to handle break commands during execution, 
+            /// or measuring some dimensions of the machine and so on in callback.
+            /// The code execution can be run in thread, and can be interrupted 
+            /// at any time by executing gcdw.breakExecution()
+            gcdw.execGcodeProgram(g, [](int l, const std::string& c, const std::string& r) { 
+                std::cout << "(" << l << ") " << c << " -> " << r << std::endl; 
+                }, [](int code) { 
+                    std::cout << "gcode finished " << code << std::endl; 
+                });
             return 0;
         } else {
             return 1;
