@@ -1,11 +1,11 @@
 #ifndef __TP_GCD_DTO_GCODE_ENGINE_CONFIG_HPP__
 #define __TP_GCD_DTO_GCODE_ENGINE_CONFIG_HPP__
 
-#include "gcd_commands.hpp"
+#include "s_GcdCommandsInterpreter.hpp"
 #include "i_Stepper.hpp"
 #include "i_Spindle.hpp"
 #include "i_Buttons.hpp"
-#include "m_motor_rpi.hpp"
+#include "driver_raspberry_pi.hpp"
 #include <istream>
 #include <string>
 #include <vector>

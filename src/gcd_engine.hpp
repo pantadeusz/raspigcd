@@ -21,11 +21,11 @@
 #ifndef __MACHINE_PI__HPP____
 #define __MACHINE_PI__HPP____
 
-#include "gcd_commands.hpp"
+#include "s_GcdCommandsInterpreter.hpp"
 #include "i_Stepper.hpp"
 #include "i_Spindle.hpp"
 #include "i_Buttons.hpp"
-#include "m_motor_rpi.hpp"
+#include "driver_raspberry_pi.hpp"
 
 #include "dto_GcodeEngineConfig.hpp"
 

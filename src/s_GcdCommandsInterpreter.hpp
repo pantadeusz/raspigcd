@@ -18,11 +18,10 @@
 
 */
 
-#ifndef ___GCD_COMMANDS_HPP___
-#define ___GCD_COMMANDS_HPP___
+#ifndef ___TP_GCD_GCDCOMMANDSINTERPRETER_HPP___
+#define ___TP_GCD_GCDCOMMANDSINTERPRETER_HPP___
 
-#include "machine.hpp"
-
+#include "s_Machine.hpp"
 #include <functional>
 #include <map>
 #include <string>
