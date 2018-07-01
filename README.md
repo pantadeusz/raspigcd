@@ -67,18 +67,18 @@ cmake -DCMAKE_INSTALL_PREFIX:PATH=./build/raspigcd ../
 
 # Running
 
-The application can be used as a library (libraspigcd.so) or as a standalone program (app). Standalone app can be used to execute G-CODE in the following way:
+The application can be used as a library (libraspigcd.so) or as a standalone program (rpigcd). Standalone app can be used to execute G-CODE in the following way:
 
 (for fake gcode execution):
 
 ```bash
-./build/app tests/unit_gcd_engine_gcdtest.gcd /config/GcodeEngine/simulationFileOutput="tmp.png"
+./build/rpigcd tests/unit_gcd_engine_gcdtest.gcd /config/GcodeEngine/simulationFileOutput="tmp.png"
 ```
 
 (for gcode execution on raspberry pi 2 or 3):
 
 ```bash
-sudo ./build/app tests/unit_gcd_engine_gcdtest.gcd
+sudo ./build/rpigcd tests/unit_gcd_engine_gcdtest.gcd
 ```
 
 
