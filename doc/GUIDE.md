@@ -15,7 +15,7 @@ make check
 # Run on Raspberry Pi
 
 ```bash
-./app ../raspigcd/tests/unit_gcd_engine_gcdtest.gcd
+./rpigcd ../raspigcd/tests/unit_gcd_engine_gcdtest.gcd
 ```
 
 # Run on Linux machine
@@ -23,11 +23,11 @@ make check
 You can run it to simulate execution of G-Code
 
 ```bash
-./app ../raspigcd/tests/unit_gcd_engine_gcdtest.gcd /config/GcodeEngine/simulationFileOutput="result.png"
+./rpigcd ../raspigcd/tests/unit_gcd_engine_gcdtest.gcd /config/GcodeEngine/simulationFileOutput="result.png"
 ```
 
 ```bash
-./app ../raspigcd/tests/unit_gcd_engine_gcdtest.gcd \
+./rpigcd ../raspigcd/tests/unit_gcd_engine_gcdtest.gcd \
      /config/GcodeEngine/simulationFileOutput="result.png" \
      /config/GcodeEngine/dpi=600
 ```

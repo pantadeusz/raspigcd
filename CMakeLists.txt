@@ -50,22 +50,22 @@ add_custom_target( cppdeps
 
 include_directories("${PROJECT_SOURCE_DIR}/src")
 
-set(app_SOURCES "a_main.cpp" )
+set(rpigcd_SOURCES "a_main.cpp" )
 file(GLOB_RECURSE lib_SOURCES "src/*.cpp")
-file(GLOB_RECURSE app_TESTS "tests/*.cpp")
+file(GLOB_RECURSE rpigcd_TESTS "tests/*.cpp")
 
 add_library(raspigcd SHARED ${lib_SOURCES})
-add_executable(app ${app_SOURCES})
-add_executable(app_test EXCLUDE_FROM_ALL ${app_TESTS} ) 
+add_executable(rpigcd ${rpigcd_SOURCES})
+add_executable(rpigcd_test EXCLUDE_FROM_ALL ${rpigcd_TESTS} ) 
 
 install (TARGETS raspigcd DESTINATION lib)
-target_link_libraries(app raspigcd libtpcommon.so)
-target_link_libraries(app_test raspigcd libtpcommon.so)
+target_link_libraries(rpigcd raspigcd libtpcommon.so)
+target_link_libraries(rpigcd_test raspigcd libtpcommon.so)
 
 
 add_dependencies(raspigcd cppdeps)
-add_dependencies(app cppdeps)
-add_dependencies(app_test cppdeps)
+add_dependencies(rpigcd cppdeps)
+add_dependencies(rpigcd_test cppdeps)
 
 
 
@@ -73,13 +73,13 @@ add_dependencies(app_test cppdeps)
 enable_testing()
 
 
-add_test( NAME app_test 
-          COMMAND "${CMAKE_BINARY_DIR}/app_test"
+add_test( NAME rpigcd_test 
+          COMMAND "${CMAKE_BINARY_DIR}/rpigcd_test"
           WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"  )
 
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
-                  DEPENDS app_test)
+                  DEPENDS rpigcd_test)
 
 
 SET(CPACK_PACKAGE_VERSION_MAJOR ${raspigcd_VERSION_MAJOR})
