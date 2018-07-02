@@ -167,8 +167,9 @@ namespace motor {
     }
 
     void busy_sleep_until(auto nt) {
-        auto now = steady_clock::now(); 
-        if (std::chrono::duration_cast<std::chrono::microseconds>(nt - now).count() > 5000) {
+        static auto now = steady_clock::now(); 
+        now = steady_clock::now(); 
+        if (std::chrono::duration_cast<std::chrono::microseconds>(nt - now).count() > 2000) {
             std::this_thread::sleep_until(nt);
         } else {
             while (std::chrono::duration_cast<std::chrono::microseconds>(nt - now).count() > 0) {
@@ -211,19 +212,11 @@ namespace motor {
                 }
                 if (currentCommand.commands != MotorCommand::Command::step)
                     lock.unlock();
-                delayToGo = ((currentCommand.delayBefore > pThis->_minStepTime) || (currentCommand.commands == MotorCommand::Command::nop)) ? std::chrono::microseconds(currentCommand.delayBefore) : minimalDelay;
-                if (minimalDelay > delayToGo)
-                    delayToGo = minimalDelay;
-                nt = prevTime + delayToGo;
-                nnow = steady_clock::now();
-                if (nt < nnow) {
-                    busy_sleep_until(nnow + minimalDelay);
-                    nt = steady_clock::now();
-                } else {
-                    busy_sleep_until(nt);
-                }
+                delayToGo = ((currentCommand.delayBefore > pThis->_minStepTime) || (currentCommand.commands == MotorCommand::Command::nop)) ? 
+                std::chrono::microseconds(currentCommand.delayBefore) : minimalDelay;
+                // if (minimalDelay > delayToGo)
+                //     delayToGo = minimalDelay;
 
-                prevTime = nt;
                 if (currentCommand.commands == MotorCommand::Command::step) {
                     bool doit = false;
                     for (unsigned i = 0; i < currentCommand.steps.size(); i++) {
@@ -240,6 +233,16 @@ namespace motor {
                 } else if (currentCommand.commands == MotorCommand::Command::spindle) {
                     _spindle.setSpeed(((double)currentCommand.steps[0]) / 127.0);
                 } // else noop
+
+                nt = prevTime + delayToGo;
+                nnow = steady_clock::now();
+                if (nt < nnow) {
+                    busy_sleep_until(nnow + minimalDelay);
+                    nt = steady_clock::now();
+                } else {
+                    busy_sleep_until(nt);
+                }
+                prevTime = nt;
             }
         }
     }
