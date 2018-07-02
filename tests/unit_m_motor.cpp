@@ -8,6 +8,7 @@
 #include "tdd_helpers.hpp"
 
 #include <chrono>
+#include <fstream>
 #include <list>
 #include <thread>
 
@@ -31,7 +32,7 @@ TEST_CASE("motor timings", "[timings][MotorMoves]")
 
     int stepsToPerform = 1000;
     int delayPerStep = 250;
-    std::vector<std::chrono::time_point<std::chrono::high_resolution_clock> > recordedTimes;
+    std::vector<std::chrono::time_point<std::chrono::steady_clock> > recordedTimes;
     Mock<i_Stepper> stepperMock;
     Mock<i_Spindle> spindleMock;
     Mock<i_Buttons> buttonsMock;
@@ -39,7 +40,7 @@ TEST_CASE("motor timings", "[timings][MotorMoves]")
     recordedTimes.reserve(stepsToPerform + 4);
     When(Method(stepperMock, enabled)).Return();
     When(Method(stepperMock, step)).AlwaysDo([&recordedTimes](std::array<signed char, 4> steps) {
-        recordedTimes.push_back(std::chrono::high_resolution_clock::now());
+        recordedTimes.push_back(std::chrono::steady_clock::now());
         for (unsigned i = 0; i < steps.size(); i++) {
             if (steps[i] > 0)
                 steps[i] -= 1;
@@ -50,34 +51,43 @@ TEST_CASE("motor timings", "[timings][MotorMoves]")
 
     When(Method(spindleMock, setSpeed)).Return();
 
-    auto exectime = std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now();
-    auto startBenchmarkTime = std::chrono::high_resolution_clock::now();
+    auto exectime = std::chrono::steady_clock::now() - std::chrono::steady_clock::now();
+    auto startBenchmarkTime = std::chrono::steady_clock::now();
     {
         std::shared_ptr<i_MotorMoves> p_motor = MotorMoves_factory(&stepperMock.get(), &spindleMock.get(), &buttonsMock.get(), 100);
         i_MotorMoves& motorMoves = *p_motor.get();
-        std::this_thread::sleep_until(std::chrono::high_resolution_clock::now() + std::chrono::microseconds(1000000));
+        std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(1000000));
 
-        startBenchmarkTime = std::chrono::high_resolution_clock::now();
+        startBenchmarkTime = std::chrono::steady_clock::now();
         for (int j = 0; j < stepsToPerform; j++) {
-            MotorCommand cmd = { delayPerStep, { 1, 1, 1 }, MotorCommand::Command::step };
+            MotorCommand cmd = { delayPerStep, { 1, 1, 1, 0 }, MotorCommand::Command::step };
             motorMoves.push(cmd);
         }
         motorMoves.wait_finished();
-        exectime = std::chrono::high_resolution_clock::now() - startBenchmarkTime;
+        exectime = std::chrono::steady_clock::now() - startBenchmarkTime;
     }
 
     int exectDuration = std::chrono::duration_cast<std::chrono::microseconds>(exectime).count();
 
     auto prtime = startBenchmarkTime;
     int i = 0;
+    std::list<int> timesList;
     for (auto tt : recordedTimes) {
         auto exectime = tt - prtime;
         int exectDuration = std::chrono::duration_cast<std::chrono::microseconds>(exectime).count();
-        if (i > 0)
-            REQUIRE(exectDuration >= 30);
+        timesList.push_back(exectDuration);
+        if (i > 0) {
+            CHECK(exectDuration >= 30);
+        }
         prtime = tt;
         i++;
     }
+    std::fstream f ("unit_m_motor_times.log", std::fstream::out);
+    for (int x = 0; timesList.size() > 0; x++) {
+        f << x << " " << timesList.front() << std::endl;
+        timesList.pop_front();
+    }
+    f.close();
     REQUIRE(exectDuration >= (delayPerStep * stepsToPerform * 99 / 100));
     REQUIRE(exectDuration <= (delayPerStep * stepsToPerform * 115 / 100)); //
     //1000610
