@@ -35,7 +35,6 @@
 #include <chrono>
 
 using std::this_thread::sleep_for;
-using std::this_thread::sleep_until;
 
 using std::chrono::duration_cast;
 using std::chrono::high_resolution_clock;
@@ -120,7 +119,7 @@ namespace motor {
 
     void MotorMoves::push(const MotorCommand& command_)
     {
-        //std::this_thread::sleep_until ( steady_clock::now()+std::chrono::microseconds( 40 ) );
+        //busy_sleep_until ( steady_clock::now()+std::chrono::microseconds( 40 ) );
         _commands.push(command_);
     }
     void MotorMoves::clear_command_queue()
@@ -167,6 +166,17 @@ namespace motor {
         return _buttons_p->getButtons();
     }
 
+    void busy_sleep_until(auto nt) {
+        auto now = steady_clock::now(); 
+        if (std::chrono::duration_cast<std::chrono::microseconds>(nt - now).count() > 5000) {
+            std::this_thread::sleep_until(nt);
+        } else {
+            while (std::chrono::duration_cast<std::chrono::microseconds>(nt - now).count() > 0) {
+                now = steady_clock::now();
+            }
+        }
+    }
+
     void MotorMoves::worker(MotorMoves* pThis)
     {
         {
@@ -191,7 +201,7 @@ namespace motor {
         pThis->paused_ = false;
         while (true) {
             if (pThis->paused_) {
-                std::this_thread::sleep_until(steady_clock::now() + std::chrono::microseconds(200));
+                busy_sleep_until(steady_clock::now() + std::chrono::microseconds(200));
                 prevTime = steady_clock::now();
             } else {
                 currentCommand = pThis->_commands.pop();
@@ -207,10 +217,10 @@ namespace motor {
                 nt = prevTime + delayToGo;
                 nnow = steady_clock::now();
                 if (nt < nnow) {
-                    std::this_thread::sleep_until(nnow + minimalDelay);
+                    busy_sleep_until(nnow + minimalDelay);
                     nt = steady_clock::now();
                 } else {
-                    std::this_thread::sleep_until(nt);
+                    busy_sleep_until(nt);
                 }
 
                 prevTime = nt;
@@ -245,7 +255,7 @@ namespace motor {
         _minStepTime = minStepTime_;
 
         worker_thread_ = std::thread(worker, this);
-        std::this_thread::sleep_until(steady_clock::now() + std::chrono::microseconds(2000));
+        busy_sleep_until(steady_clock::now() + std::chrono::microseconds(2000));
     }
 
     MotorMoves::MotorMoves(p_Stepper motors_p, p_Spindle spindle_p, p_Buttons buttons_p, int minStepTime_)
