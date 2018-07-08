@@ -212,7 +212,7 @@ namespace motor {
         }
         //std::this_thread::sleep_for(std::chrono::microseconds(10));
         auto now = std::chrono::steady_clock::now();
-        while (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - now).count() < 10) {
+        while (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - now).count() < 1) {
             now = std::chrono::steady_clock::now();
         }
 
