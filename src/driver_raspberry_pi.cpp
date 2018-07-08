@@ -210,11 +210,11 @@ namespace motor {
                 GPIO_SET = 1 << conf[i].step;
             };
         }
-        //std::this_thread::sleep_for(std::chrono::microseconds(10));
-        auto now = std::chrono::steady_clock::now();
-        while (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - now).count() < 1) {
-            now = std::chrono::steady_clock::now();
-        }
+        std::this_thread::sleep_for(std::chrono::microseconds(5));
+        //auto now = std::chrono::steady_clock::now();
+        //while (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - now).count() < 1) {
+        //    now = std::chrono::steady_clock::now();
+        //}
 
         for (unsigned i = 0; i < dirs.size(); i++) {
             GPIO_CLR = 1 << conf[i].step;
