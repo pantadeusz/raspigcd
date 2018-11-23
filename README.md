@@ -12,7 +12,8 @@ by Tadeusz Puźniakowski [frezia.pl](http://frezia.pl) [puzniakowski.pl](http://
 
 This is the gcd interpreter that works directly on Raspberry Pi 2 and 3. For it to work you need only stepsticks. No additional Arduino based board.
 
-The program accepts only subset of G-CODE standard. Currently supported codes can be seen in hcd_commands.cpp. The most significant are G0 and G1, as well as M3 M5 M17 M18.
+The program accepts only subset of G-CODE standard. Currently supported codes can be seen in s_GcdCommandsInterpreter.cpp
+. The most significant are G0 and G1, as well as M3 M5 M17 M18.
 
 The reason why I created this app was that I wanted to have real-time control over execution of G-CODE. In the RPi/Arduino configuration, there are 2 independent devices that comunicate over serial channel, so it is not that convinient to acheave this level of control.
 
