@@ -173,6 +173,7 @@ namespace motor {
             std::this_thread::sleep_until(nt);
         } else {
             while (std::chrono::duration_cast<std::chrono::microseconds>(nt - now).count() > 0) {
+                std::this_thread::yield();
                 now = steady_clock::now();
             }
         }
