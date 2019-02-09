@@ -73,7 +73,7 @@ namespace motor {
 
         // currentSteps_
         auto startSteps = currentSteps_;
-        double delay_us = 50; // TODO: fix! 
+        double delay_us = 10; // TODO: fix! 
         double dt = delay_us*0.000001; // TODO: fix!
                 
         int stepsAccelerating = 0;
