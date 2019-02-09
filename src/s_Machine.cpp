@@ -56,17 +56,12 @@ namespace motor {
         std::unique_lock<std::mutex> lock_guard_steps(m_csteps_);
 
         auto p0 = coordTranslator_.get()->translate(currentSteps_);
+        auto p1 = pos0;
+        auto destinationSteps = coordTranslator_.get()->translate(pos0);
+        
         auto dp = pos - p0;
         double l = ::sqrt(len2(dp)); // length in mm
-
-        double t = l / velocity; // t[s]
-        double t_us = 1000000 * t;
-
-        double tA = l / maxVelocityNoAccel;
-        double tA_us = 1000000 * tA;
-
-        //    auto stepsInDirections = dp/minimalStepMm;
-
+        if (l <= 0) return;
         static auto max_fabs = [](double a, double b) {
             a = a < 0 ? -a : a;
             b = b < 0 ? -b : b;
@@ -78,27 +73,53 @@ namespace motor {
 
         // currentSteps_
         auto startSteps = currentSteps_;
-        auto dSteps = destSteps - startSteps;
-        auto maxSteps = max_fabs(max_fabs(max_fabs(dSteps[0], dSteps[1]), dSteps[2]), dSteps[3]);
-        double dt_us = t_us / maxSteps;
-        double dtA_us = tA_us / maxSteps;
-
-        if (std::isnan(dt_us))
-            dt_us = 2000;
-        if (std::isnan(dtA_us))
-            dtA_us = 2000;
-        if (std::isinf(dt_us))
-            dt_us = 5000;
-        if (std::isinf(dtA_us))
-            dtA_us = 5000;
-
-        double delay_us = dtA_us;
+        double delay_us = 50; // TODO: fix! 
+        double dt = delay_us*0.000001; // TODO: fix!
+                
         int stepsAccelerating = 0;
-        for (int j = 1; j <= maxSteps; j++) {
-            dSteps = startSteps + ((destSteps - startSteps) * j) / maxSteps - currentSteps_;
+        double acceleration_length = -1;
+        double v = (maxVelocityNoAccel>=velocity)?velocity:maxVelocityNoAccel; // current velocity
+        double dv = ddt;
+        int stage = 0; // 0 - accel, 1 - const, 2 - break
+        Position vp = dp/l; // movement vector
+        double delay_us_todo = 0;
+        
+        for (double l_done = 0; ::sqrt(len2(coordTranslator_.get()->translate(currentSteps_)-p0)) < l; ) {
+            delay_us_todo += delay_us;
+            //std::cout << "p = " << pos[0] << ", " << pos[1] << "v = " << v << "  dv = " << dv  << ";  l=" << l << " " << l_done << std::endl;
+            switch (stage)
+            {
+                case 0:
+                    if (v >= velocity) {
+                        stage = 1;
+                        acceleration_length = l_done;
+                        dv = 0; // constant speed
+                    }
+                    break;
+                case 1:
+                    if ((l-l_done) <= acceleration_length) {
+                        dv = -ddt;
+                        stage = 2;
+                    }
+                    break;
+                case 2:
+                    if (v <= 0.001) {
+                        v = 0.001;
+                    }
+                    break;
+            }
+            v = v + dv*dt;
+            auto dl = v*dt+(dv*dt*dt)/2;
+            if (v < 0.01) v = 0.01;
+            if (v > velocity) v = velocity;
+            l_done += dl;
+            auto new_pos = pos + vp*dl;
+            auto dSteps = coordTranslator_.get()->translate(new_pos) - coordTranslator_.get()->translate(pos);
+            pos = new_pos;
             while ((dSteps[0] != 0) || (dSteps[1] != 0) || (dSteps[2] != 0) || (dSteps[3] != 0)) {
                 MotorCommand cmd;
-                cmd.delayBefore = delay_us;
+                if (delay_us_todo <= delay_us) delay_us_todo = delay_us;
+                cmd.delayBefore = delay_us_todo;
                 //std::cout << "   .. " << delay_us << "us" << std::endl;
                 for (int i = 0; i < 4; i++) {
                     if (dSteps[i] > 0) {
@@ -120,28 +141,10 @@ namespace motor {
                     throw BreakException();
                 }
                 motorMoves_.get()->push(cmd);
-                if (j < maxSteps / 2) {
-                    if (delay_us >= dt_us) {
-                        stepsAccelerating++;
-                    }
-                    //std::cout << " " << delay_us;
-                } else {
-                    if (j >= (maxSteps - stepsAccelerating)) {
-                        stepsAccelerating--;
-                        if (stepsAccelerating < 1)
-                            stepsAccelerating = 1;
-                    }
-                    //std::cout << " " << delay_us;
-                }
-                delay_us = dtA_us - ::sqrt(stepsAccelerating) * ddt;
-                if (delay_us > dtA_us)
-                    delay_us = dtA_us;
-                if (delay_us < dt_us) {
-                    delay_us = dt_us;
-                }
+                delay_us_todo = 0;
             }
         }
-        //std::cout << std::endl;
+
     }
 
     void Machine::spindleEnabled(bool _enabled)

@@ -124,6 +124,8 @@ namespace gcd {
 
         G0speed = 20;
         G1speed = 5;
+        G0speedV0 = 1;
+        G0speedV0ddt = 20;
         frMultiplier = 1; // 60 for mm/min, 1 for mm/s
 
         executors['G'] = [this](std::map<char, double>& m) -> std::string {
