@@ -27,7 +27,7 @@ You need the following dependencies to build this project:
 
  * cmake
  * make
- * nodejs
+ * nodejs (raspigcd is a part of a bigger project, and nodejs is for ad-hoc dependency management) 
  * git
  * g++ 6 or higher
  * Linux
@@ -97,7 +97,7 @@ Remember that this can run for a long time - it performs also real time checks w
 
 ## Future work
 
-Current approach for g-code interpretation is good for interpretation "per command". It is good and usual approach for this problem in cheap CNC solutions. Let's see..
+Current approach for g-code interpretation is good for interpretation "per command". Let's see..
 
  * Raspberry Pi have lots of ram compared to traditional embedded solutions
  * Raspberry Pi have better computation capabilities than traditional embedded solutions
@@ -105,7 +105,7 @@ Current approach for g-code interpretation is good for interpretation "per comma
 So what can be done:
 
  * let's treat whole g-code sequence at once - consecutive G-codes can be grouped as one program and analyzed as a whole
- * Raspberry Pi memory can handle every tick for even 10m of program
+ * Raspberry Pi memory can handle every tick for even 10m of program (asuming 3 motors and 3 bits per motor - step,dir,en)
  * the optimization techniques and simulations can be applied for series of ticks
  * if there would be simulator for machine movements, then it would be possible to optimize track using the physical simulator
 
@@ -122,3 +122,5 @@ I don't have policy for this right now. Please contact me if you would like to h
 ## License
 
 AGPL. See LICENSE.md
+
+Currently there is only one author in this repository (me), so you can contact me if you would like to have different license type.
