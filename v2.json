@@ -1,0 +1,82 @@
+{
+  "buttons": [
+    {
+      "pin": 21,
+      "pullup": true
+    },
+    {
+      "pin": 20,
+      "pullup": true
+    },
+    {
+      "pin": 16,
+      "pullup": true
+    },
+    {
+      "pin": 12,
+      "pullup": true
+    }
+  ],
+  "lasers": [],
+  "max_accelerations_mm_s2": [
+    200.0,
+    200.0,
+    200.0,
+    200.0
+  ],
+  "max_no_accel_velocity_mm_s": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+  ],
+  "max_velocity_mm_s": [
+    220.0,
+    220.0,
+    110.0,
+    220.0
+  ],
+  "motion_layout": "corexy",
+  "scale": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "simulate_execution": false,
+  "spindles": [
+    {
+      "cycle_time_seconds": 0.1,
+      "duty_max": 0.1,
+      "duty_min": 0.0,
+      "pin": 18
+    }
+  ],
+  "steppers": [
+    {
+      "dir": 27,
+      "en": 10,
+      "step": 22,
+      "steps_per_mm": 100.0
+    },
+    {
+      "dir": 4,
+      "en": 10,
+      "step": 17,
+      "steps_per_mm": 100.0
+    },
+    {
+      "dir": 9,
+      "en": 10,
+      "step": 11,
+      "steps_per_mm": 100.0
+    },
+    {
+      "dir": 0,
+      "en": 10,
+      "step": 5,
+      "steps_per_mm": 100.0
+    }
+  ],
+  "tick_duration_us": 50
+}

@@ -1,0 +1,14 @@
+
+mkdir -p build_gpp7
+export CC=/usr/bin/gcc-7
+export CXX=/usr/bin/g++-7
+cd build_gpp7
+cmake ..
+cd ..
+
+mkdir -p build_gpp8
+export CC=/usr/bin/gcc-8
+export CXX=/usr/bin/g++-8
+cd build_gpp8
+cmake ..
+cd ..
