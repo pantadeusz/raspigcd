@@ -24,14 +24,9 @@ using namespace raspigcd;
 using namespace raspigcd::hardware;
 using namespace raspigcd::gcd;
 
-
-#include <video.hpp>
-
 /// Visualization part
-//#define HAVE_SDL2
-
 #ifdef HAVE_SDL2
-
+#include <video.hpp>
 #include <SDL2/SDL.h>
 class video_sdl
 {
@@ -296,7 +291,9 @@ stepping_simple_timer_factory(configuration::global cfg)
         spindles_drv = std::make_shared<raspigcd::hardware::driver::low_spindles_pwm_fake>(
             [](const int s_i, const double p_i) {
                 std::cout << "SPINDLE " << s_i << " POWER: " << p_i << std::endl;
+#ifdef HAVE_SDL2
                 if (video.get() != nullptr) video->set_spindle(p_i);
+#endif
             });
         fk->on_enable_steppers = [](const std::vector<bool> m) {
             std::cout << "STEPPERS: ";
