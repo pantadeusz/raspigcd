@@ -37,6 +37,12 @@ struct single_step_command {
 
 struct multistep_command {
     std::array<single_step_command,4> b; // command that have to be executed synchronously
+    union {
+        unsigned char all;
+        struct {
+            unsigned char g:2;
+        } bits;
+    } flags;
     int count;                                    // number of times to repeat the command, it means that the command will be executed repeat n.
 };
 using multistep_commands_t = std::vector<multistep_command>;
@@ -51,6 +57,7 @@ inline bool operator==(const single_step_command &a, const single_step_command &
  */
 inline bool multistep_command_same_command(const multistep_command &a, const multistep_command &b) {
     for (unsigned i = 0; i < a.b.size(); i++) if (!(a.b[i] == b.b[i])) return false;
+    if (a.flags.all != b.flags.all) return false;
     return true;
 }
 

@@ -130,11 +130,15 @@ TEST_CASE( "Configuration handling", "[configuration]" ) {
     }
 
     SECTION( "wrong layout should throw exception " ) {
+        std::cout << "AA" << std::endl;
         nlohmann::json j = {{"motion_layout","some wrong layout"}};
+        std::cout << "AA" << std::endl;
         raspigcd::configuration::global cfg;
+        std::cout << "AA" << std::endl;
         REQUIRE_THROWS([&](){cfg = j;}(), 
             std::invalid_argument("motion_layout can be only corexy or cartesian")
         );
+        std::cout << "AA" << std::endl;
     }
     
     SECTION( "corexy support " ) {

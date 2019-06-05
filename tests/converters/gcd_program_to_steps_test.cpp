@@ -62,7 +62,7 @@ TEST_CASE("converters - program_to_steps", "[gcd][converters][program_to_steps]"
     auto motor_layot_p = hardware::motor_layout::get_instance(test_config);
     motor_layot_p->set_configuration(test_config);
     //std::cout << "sdfdss::"<<(motor_layot_p.get()->cartesian_to_steps({1,2,3,4})) << "   <<<)))))_____  \n";
-    auto program_to_steps = converters::program_to_steps_factory("program_to_steps");
+    auto program_to_steps = converters::program_to_steps_factory(configuration::steps_generator_e::PROGRAM_TO_STEPS);
 
     SECTION("empty program should result in empty steps list")
     {

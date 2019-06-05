@@ -371,18 +371,14 @@ hardware::multistep_commands_t linear_interpolation_to_steps(
 
 
 
-program_to_steps_f_t program_to_steps_factory(const std::string f_name)
+program_to_steps_f_t program_to_steps_factory(const configuration::steps_generator_e f_name)
 {
-    if (f_name == "program_to_steps") {
-        return program_to_steps;
-    }
-    if (f_name == "bezier_spline") {
-        return bezier_spline_program_to_steps;
-    }
-    if (f_name == "linear_interpolation") {
-        return linear_interpolation_to_steps;
-    }
-    throw std::invalid_argument("bad function name - available are program_to_steps bezier_spline linear_interpolation");
+switch(f_name) {
+case configuration::steps_generator_e::PROGRAM_TO_STEPS:return program_to_steps; break;
+case configuration::steps_generator_e::BEZIER_SPLINE:return bezier_spline_program_to_steps; break;
+case configuration::steps_generator_e::LINEAR_INTERPOLATION: return linear_interpolation_to_steps; break;
+default:     throw std::invalid_argument("bad function name - available are program_to_steps bezier_spline linear_interpolation");
+}
 }
 
 

@@ -27,6 +27,14 @@
 namespace raspigcd {
 namespace hardware {
 
+enum low_buttons_default_meaning_t {
+    ENDSTOP_X,
+    ENDSTOP_Y,
+    ENDSTOP_Z,
+    ENDSTOP_A,
+    PAUSE,
+    TERMINATE
+};
 
 class low_buttons
 {

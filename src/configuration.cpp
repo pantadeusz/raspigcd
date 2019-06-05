@@ -29,34 +29,47 @@
 namespace raspigcd {
 namespace configuration {
 
-double limits::proportional_max_accelerations_mm_s2(const distance_t& norm_vect) const {
+
+static const std::array<std::string, 3> steps_generator_strings = {"program_to_steps", "bezier_spline", "linear_interpolation"};
+static const std::map<std::string, steps_generator_e> steps_generator_values = {
+    {"", PROGRAM_TO_STEPS}, // default
+    {"program_to_steps", PROGRAM_TO_STEPS},
+    {"bezier_spline", BEZIER_SPLINE},
+    {"linear_interpolation", LINEAR_INTERPOLATION}};
+
+
+double limits::proportional_max_accelerations_mm_s2(const distance_t& norm_vect) const
+{
     return calculate_linear_coefficient_from_limits(max_accelerations_mm_s2, norm_vect);
 }
-double limits::proportional_max_velocity_mm_s(const distance_t& norm_vect) const {
+double limits::proportional_max_velocity_mm_s(const distance_t& norm_vect) const
+{
     return calculate_linear_coefficient_from_limits(max_velocity_mm_s, norm_vect);
 }
-double limits::proportional_max_no_accel_velocity_mm_s(const distance_t& norm_vect) const {
+double limits::proportional_max_no_accel_velocity_mm_s(const distance_t& norm_vect) const
+{
     return calculate_linear_coefficient_from_limits(max_no_accel_velocity_mm_s, norm_vect);
 }
 
 
 double global::tick_duration() const
-{ // czas ticku w sekundach. 0.00005 = 50mikrosekund
-    return ((double) tick_duration_us)/1000000.0; // 0.000001 * (double)tick_duration_us;
+{                                                  // czas ticku w sekundach. 0.00005 = 50mikrosekund
+    return ((double)tick_duration_us) / 1000000.0; // 0.000001 * (double)tick_duration_us;
 }
 
 global& global::load_defaults()
 {
     tick_duration_us = 50;
     simulate_execution = false;
+    steps_generator = steps_generator_e::PROGRAM_TO_STEPS;
 
-    douglas_peucker_marigin = 1.0/64.0;
+    douglas_peucker_marigin = 1.0 / 64.0;
 
     motion_layout = COREXY; //"corexy";
     lowleveltimer = BUSY_WAIT;
     scale = {1.0, 1.0, 1.0};
     max_accelerations_mm_s2 = {200.0, 200.0, 200.0};
-    max_velocity_mm_s = {220.0, 220.0, 110.0};  ///<maximal velocity on axis in mm/s
+    max_velocity_mm_s = {220.0, 220.0, 110.0};    ///<maximal velocity on axis in mm/s
     max_no_accel_velocity_mm_s = {2.0, 2.0, 2.0}; ///<maximal velocity on axis in mm/s
 
     steppers = {
@@ -65,11 +78,11 @@ global& global::load_defaults()
         stepper(9, 10, 11, 100.0)
         //,
         //stepper(0, 10, 5, 100.0)
-        };
+    };
     buttons = {
-        {.pin = 21, .pullup = true}, 
-        {.pin = 20, .pullup = true}, 
-        {.pin = 16, .pullup = true}, 
+        {.pin = 21, .pullup = true},
+        {.pin = 20, .pullup = true},
+        {.pin = 16, .pullup = true},
         {.pin = 12, .pullup = true}};
     spindles = {
         {.pin = 18,
@@ -173,11 +186,11 @@ void from_json(const nlohmann::json& j, button& p)
 }
 
 
-auto lowleveltimertostring = [](auto llt){
-    return (llt == BUSY_WAIT) ? 
-            "low_timers_busy_wait" : (
-               (llt == WAIT_FOR) ? "low_timers_wait_for" : "low_timers_fake"
-            );
+auto lowleveltimertostring = [](auto llt) {
+    return (llt == BUSY_WAIT) ?
+               "low_timers_busy_wait" :
+               (
+                   (llt == WAIT_FOR) ? "low_timers_wait_for" : "low_timers_fake");
 };
 
 void to_json(nlohmann::json& j, const global& p)
@@ -185,6 +198,7 @@ void to_json(nlohmann::json& j, const global& p)
     j = nlohmann::json{
         {"tick_duration_us", p.tick_duration_us},
         {"simulate_execution", p.simulate_execution},
+        {"steps_generator", steps_generator_strings.at(p.steps_generator)},
         {"douglas_peucker_marigin", p.douglas_peucker_marigin},
         {"lowleveltimer", lowleveltimertostring(p.lowleveltimer)},
         {"motion_layout", (p.motion_layout == COREXY) ? "corexy" : "cartesian"},
@@ -202,15 +216,15 @@ void from_json(const nlohmann::json& j, global& p)
 {
     p.simulate_execution = j.value("simulate_execution", p.simulate_execution);
     p.douglas_peucker_marigin = j.value("douglas_peucker_marigin", p.douglas_peucker_marigin);
+    p.steps_generator = steps_generator_values.at(j.value("steps_generator", steps_generator_strings.at(p.steps_generator)));
     p.tick_duration_us = j.value("tick_duration_us", p.tick_duration_us);
 
     {
         //p.lowleveltimer = j.value("lowleveltimer", p.lowleveltimer);
         std::string s = j.value("lowleveltimer", lowleveltimertostring(p.lowleveltimer));
-        if (!((s == "low_timers_busy_wait") || 
-        (s == "low_timers_wait_for") || 
-        (s == "low_timers_fake")
-        )) throw std::invalid_argument("lowleveltimer can be only low_timers_busy_wait or low_timers_wait_for or low_timers_fake");
+        if (!((s == "low_timers_busy_wait") ||
+                (s == "low_timers_wait_for") ||
+                (s == "low_timers_fake"))) throw std::invalid_argument("lowleveltimer can be only low_timers_busy_wait or low_timers_wait_for or low_timers_fake");
         p.lowleveltimer = (s == "low_timers_busy_wait") ? BUSY_WAIT : p.lowleveltimer;
         p.lowleveltimer = (s == "low_timers_wait_for") ? WAIT_FOR : p.lowleveltimer;
         p.lowleveltimer = (s == "low_timers_fake") ? FAKE : p.lowleveltimer;
@@ -218,20 +232,23 @@ void from_json(const nlohmann::json& j, global& p)
 
     {
         std::string s = j.value("motion_layout", (p.motion_layout == COREXY) ? "corexy" : "cartesian");
-    if (!((s == "corexy") || (s == "cartesian"))) throw std::invalid_argument("motion_layout can be only corexy or cartesian");
-    p.motion_layout = (s == "corexy") ? COREXY : p.motion_layout;
-    p.motion_layout = (s == "cartesian") ? CARTESIAN : p.motion_layout;
+        if (!((s == "corexy") || (s == "cartesian"))) throw std::invalid_argument("motion_layout can be only corexy or cartesian");
+        p.motion_layout = (s == "corexy") ? COREXY : p.motion_layout;
+        p.motion_layout = (s == "cartesian") ? CARTESIAN : p.motion_layout;
     }
 
     //(std::array<double,4>)
-//    std::cout << "have: " << p.scale << " -> " << j["scale"] << " -> ";
-    std::vector<double> tmp = j.value("scale", std::vector<double>(p.scale.begin(),p.scale.end()));
-    p.scale = tmp;//(std::array<double,4>)p.scale);
-//    for (auto e : tmp) std::cout << e << ",";
-//    std::cout << " -> " << p.scale << std::endl;
-    tmp = j.value("max_accelerations_mm_s2", std::vector<double>(p.max_accelerations_mm_s2.begin(),p.max_accelerations_mm_s2.end())); p.max_accelerations_mm_s2 = tmp;
-    tmp = j.value("max_velocity_mm_s", std::vector<double>(p.max_velocity_mm_s.begin(),p.max_velocity_mm_s.end())); p.max_velocity_mm_s = tmp;
-    tmp = j.value("max_no_accel_velocity_mm_s", std::vector<double>(p.max_no_accel_velocity_mm_s.begin(),p.max_no_accel_velocity_mm_s.end())); p.max_no_accel_velocity_mm_s = tmp;
+    //    std::cout << "have: " << p.scale << " -> " << j["scale"] << " -> ";
+    std::vector<double> tmp = j.value("scale", std::vector<double>(p.scale.begin(), p.scale.end()));
+    p.scale = tmp; //(std::array<double,4>)p.scale);
+                   //    for (auto e : tmp) std::cout << e << ",";
+                   //    std::cout << " -> " << p.scale << std::endl;
+    tmp = j.value("max_accelerations_mm_s2", std::vector<double>(p.max_accelerations_mm_s2.begin(), p.max_accelerations_mm_s2.end()));
+    p.max_accelerations_mm_s2 = tmp;
+    tmp = j.value("max_velocity_mm_s", std::vector<double>(p.max_velocity_mm_s.begin(), p.max_velocity_mm_s.end()));
+    p.max_velocity_mm_s = tmp;
+    tmp = j.value("max_no_accel_velocity_mm_s", std::vector<double>(p.max_no_accel_velocity_mm_s.begin(), p.max_no_accel_velocity_mm_s.end()));
+    p.max_no_accel_velocity_mm_s = tmp;
 
     p.spindles = j.value("spindles", p.spindles);
     p.steppers = j.value("steppers", p.steppers);
@@ -249,6 +266,8 @@ std::ostream& operator<<(std::ostream& os, global const& value)
 bool operator==(const global& l, const global& r)
 {
     return (l.tick_duration_us == r.tick_duration_us) &&
+           (l.steps_generator == r.steps_generator) &&
+           (l.max_accelerations_mm_s2 == r.max_accelerations_mm_s2) &&
            (l.max_accelerations_mm_s2 == r.max_accelerations_mm_s2) &&
            (l.max_velocity_mm_s == r.max_velocity_mm_s) &&
            (l.max_no_accel_velocity_mm_s == r.max_no_accel_velocity_mm_s) &&
@@ -284,18 +303,18 @@ bool operator==(const spindle_pwm& l, const spindle_pwm& r)
 }
 
 
-void to_json( nlohmann::json& j, const sync_laser& p )
+void to_json(nlohmann::json& j, const sync_laser& p)
 {
     j = nlohmann::json{
         {"pin", p.pin},
         {"hi_is_off", p.hi_is_off}};
 }
-void from_json( const nlohmann::json& j, sync_laser& p )
+void from_json(const nlohmann::json& j, sync_laser& p)
 {
     p.hi_is_off = j.value("hi_is_off", p.hi_is_off);
     p.pin = j.value("pin", p.pin);
 }
-std::ostream& operator<<( std::ostream& os, sync_laser const& value )
+std::ostream& operator<<(std::ostream& os, sync_laser const& value)
 {
     nlohmann::json j = value;
     os << j.dump(2);

@@ -48,7 +48,7 @@ using program_to_steps_f_t = std::function<hardware::multistep_commands_t (
 //{{'F',0}},[](const gcd::block_t &){}
 
 
-program_to_steps_f_t program_to_steps_factory( const std::string f_name );
+program_to_steps_f_t program_to_steps_factory( const configuration::steps_generator_e f_name );
 
 
 } // namespace converters

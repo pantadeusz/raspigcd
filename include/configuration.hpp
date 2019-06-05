@@ -28,6 +28,7 @@
 #include <hardware_dof_conf.hpp>
 #include <string>
 #include <vector>
+#include <map>
 
 
 namespace raspigcd {
@@ -164,18 +165,25 @@ public:
 };
 
 
+enum steps_generator_e {
+PROGRAM_TO_STEPS,// "program_to_steps"
+BEZIER_SPLINE,// "bezier_spline"
+LINEAR_INTERPOLATION// "linear_interpolation"
+};
+
 /**
  * Global configuration class.
  */
 class global : public limits, public actuators_organization
 {
 public:
-    /**
+/**
  * @brief get tick duration in seconds
  * 
  * @return double tick duration in seconds
  */
-    double tick_duration() const; // czas ticku w sekundach. 0.00005 = 50mikrosekund
+    double tick_duration() const; // tick time in seconds. 0.00005 = 50microseconds
+    steps_generator_e steps_generator; // selected steps generator - the method that transforms path to steps
     bool simulate_execution;      // should I use simulator by default
     double douglas_peucker_marigin;
     low_timers_e lowleveltimer;
@@ -187,6 +195,7 @@ public:
     global& load_defaults();
     global& load(const std::string& filename);
     global& save(const std::string& filename);
+    global(){load_defaults();}
 };
 
 bool operator==(const global& l, const global& r);

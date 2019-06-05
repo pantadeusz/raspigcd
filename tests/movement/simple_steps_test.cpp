@@ -45,53 +45,38 @@ TEST_CASE("Movement constant speed in steps generator", "[movement][steps_genera
         auto result = collapse_repeated_steps({});
         REQUIRE(result.size() == 0);
 
-        result = collapse_repeated_steps({{
-            .b = {zero_move, zero_move, zero_move, zero_move},
+        result = collapse_repeated_steps({{.b = {zero_move, zero_move, zero_move, zero_move},
+            .flags = {.all = 0},
             .count = 1}});
         REQUIRE(result.size() == 1);
 
         result = collapse_repeated_steps(
-            {
-            {.b = {zero_move, zero_move, zero_move, zero_move}, .count = 1},
-            {.b = {zero_move, zero_move, zero_move, zero_move}, .count = 1}
-            }
-            );
+            {{.b = {zero_move, zero_move, zero_move, zero_move}, .flags = {.all = 0}, .count = 1},
+                {.b = {zero_move, zero_move, zero_move, zero_move}, .flags = {.all = 0}, .count = 1}});
         REQUIRE(result.size() == 1);
         REQUIRE(result[0].count == 2);
 
         result = collapse_repeated_steps(
-            {
-            {.b = {zero_move, zero_move, zero_move, zero_move}, .count = 1},
-            {.b = {zero_move, zero_move, zero_move, zero_move}, .count = 0}
-            }
-            );
+            {{.b = {zero_move, zero_move, zero_move, zero_move}, .flags = {.all = 0}, .count = 1},
+                {.b = {zero_move, zero_move, zero_move, zero_move}, .flags = {.all = 0}, .count = 0}});
         REQUIRE(result.size() == 1);
         REQUIRE(result[0].count == 1);
 
         result = collapse_repeated_steps(
-            {
-            {.b = {zero_move, zero_move, zero_move, zero_move}, .count = 0},
-            {.b = {zero_move, zero_move, zero_move, zero_move}, .count = 0}
-            }
-            );
+            {{.b = {zero_move, zero_move, zero_move, zero_move}, .flags = {.all = 0}, .count = 0},
+                {.b = {zero_move, zero_move, zero_move, zero_move}, .flags = {.all = 0}, .count = 0}});
         REQUIRE(result.size() == 0);
 
         result = collapse_repeated_steps(
-            {
-            {.b = {zero_move, zero_move, zero_move, zero_move}, .count = 1},
-            {.b = {zero_move, zero_move, zero_move, zero_move}, .count = 2}
-            }
-            );
+            {{.b = {zero_move, zero_move, zero_move, zero_move}, .flags = {.all = 0}, .count = 1},
+                {.b = {zero_move, zero_move, zero_move, zero_move}, .flags = {.all = 0}, .count = 2}});
         REQUIRE(result.size() == 1);
         REQUIRE(result[0].count == 3);
 
         result = collapse_repeated_steps(
-            {
-            {.b = {zero_move, zero_move, zero_move, zero_move}, .count = 1},
-            {.b = {zero_move, zero_move, zero_move, zero_move}, .count = 2},
-            {.b = {hardware::single_step_command{1,0}, hardware::single_step_command{1, 0}, zero_move, zero_move}, .count = 2}
-            }
-            );
+            {{.b = {zero_move, zero_move, zero_move, zero_move}, .flags = {.all = 0}, .count = 1},
+                {.b = {zero_move, zero_move, zero_move, zero_move}, .flags = {.all = 0}, .count = 2},
+                {.b = {hardware::single_step_command{1, 0}, hardware::single_step_command{1, 0}, zero_move, zero_move}, .flags = {.all = 0}, .count = 2}});
         REQUIRE(result.size() == 2);
         REQUIRE(result[0].count == 3);
         REQUIRE(result[1].count == 2);

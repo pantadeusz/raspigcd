@@ -59,7 +59,7 @@ TEST_CASE("Hardware stepping_sim", "[hardware_stepping][stepping_sim]")
             c, 
             c, 
             c            
-            }, 1}});
+            },{}, 1}});
         REQUIRE(n == 1);
     }
     SECTION("Run one step in each positive  direction")
