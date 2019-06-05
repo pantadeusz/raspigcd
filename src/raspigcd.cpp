@@ -223,17 +223,7 @@ int main(int argc, char** argv)
         } else if (args.at(i) == "-f") {
             using namespace raspigcd;
             using namespace raspigcd::hardware;
-            //bool enable_video = false;
 
-            //std::shared_ptr<low_steppers> steppers_drv;
-            //std::shared_ptr<low_spindles_pwm> spindles_drv;
-            //std::shared_ptr<low_buttons> buttons_drv;
-
-
-            //steps_t position_for_fake;
-
-
-            //auto [stepping, motor_layout_]
             auto [timer_drv, steppers_drv,
                 spindles_drv,
                 buttons_drv,
@@ -325,9 +315,6 @@ int main(int argc, char** argv)
                             std::cout << "calculations took " << dt << " milliseconds; have " << m_commands.size() << " steps to execute" << std::endl;
                             try {
                                 stepping->exec(m_commands, [motor_layout_, &spindles_status, timer_drv, spindles_drv, &break_execution_result, machine_state_prev, last_spindle_on_delay](auto steps_from_origin, auto tick_n) -> int {
-                                    // if (!(video->active)) {
-                                    //     return 0; // finish
-                                    // }
                                     std::cout << "break at " << tick_n << " tick" << std::endl;
                                     steps_from_origin = steps_from_origin + motor_layout_->cartesian_to_steps(block_to_distance_t(machine_state_prev));
                                     std::cout << "Position: " << motor_layout_->steps_to_cartesian(steps_from_origin) << std::endl;
@@ -394,12 +381,6 @@ int main(int argc, char** argv)
                         }
                     }
                 }
-                /*if (video.get() != nullptr) {
-                    if (!(video->active)) {
-                        stepping->terminate();
-                        break;
-                    }
-                } */
                 std::string s = "";
                 for (auto e : machine_state) {
                     s = s + ((s.size()) ? " " : "") + e.first + std::to_string(e.second);

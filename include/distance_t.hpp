@@ -96,6 +96,23 @@ public:
       auto ab = b - a;
       return a + ab * ((ap).dot_product(ab) / (ab).dot_product(ab));
     }
+    /**
+     * returns new position without last element
+     * */
+    generic_position_t<T,N-1> skip_back() const {
+        generic_position_t<T,N-1> ret;
+        for (int i = 0; i < N-1; i++) ret[i] = this->at(i);
+        return ret;
+    }
+    /**
+     * returns new position without last element
+     * */
+    generic_position_t<T,N+1> with_back(const T v) const {
+        generic_position_t<T,N+1> ret;
+        for (int i = 0; i < N; i++) ret[i] = this->at(i);
+        ret.back() = v;
+        return ret;
+    }
 };
 
 template<class T,std::size_t N>

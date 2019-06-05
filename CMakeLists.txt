@@ -10,13 +10,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
-  #set(CMAKE_BUILD_TYPE Release)
-  set(CMAKE_BUILD_TYPE Debug)
+  set(CMAKE_BUILD_TYPE Release)
+  #set(CMAKE_BUILD_TYPE Debug)
 endif()
 
 include(CheckLibraryExists)
 
-set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-ggdb ")
 # consider also -flto
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -frename-registers -funroll-loops -DNDEBUG")
