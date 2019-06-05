@@ -264,8 +264,9 @@ public:
 
 namespace raspigcd {
 
+#ifdef HAVE_SDL2
 std::shared_ptr<video_sdl> video;
-
+#endif
 
 std::tuple<
     std::shared_ptr<raspigcd::hardware::low_timers>,
@@ -276,8 +277,9 @@ std::tuple<
     std::shared_ptr<raspigcd::hardware::stepping_simple_timer>>
 stepping_simple_timer_factory(configuration::global cfg)
 {
+#ifdef HAVE_SDL2
     bool enable_video = false;
-
+#endif
     std::shared_ptr<low_steppers> steppers_drv;
     std::shared_ptr<low_spindles_pwm> spindles_drv;
     std::shared_ptr<low_buttons> buttons_drv;
@@ -306,11 +308,12 @@ stepping_simple_timer_factory(configuration::global cfg)
         auto buttons_fake_fake = std::make_shared<driver::low_buttons_fake>(10);
         buttons_drv = std::make_shared<driver::low_buttons_fake>(10);
 
-
+#ifdef HAVE_SDL2
         fk->set_step_callback([](const steps_t& st) {
             if (video.get() != nullptr) video->set_steps(st);
         });
         enable_video = true;
+#endif
     }
     //std::shared_ptr<driver::raspberry_pi_3> steppers_drv = std::make_shared<driver::raspberry_pi_3>(cfg);
     std::shared_ptr<motor_layout> motor_layout_ = motor_layout::get_instance(cfg);
@@ -328,10 +331,10 @@ stepping_simple_timer_factory(configuration::global cfg)
         break;
     }
     std::shared_ptr<stepping_simple_timer> stepping = std::make_shared<stepping_simple_timer>(cfg, steppers_drv, timer_drv);
-    if (enable_video) {
+#ifdef HAVE_SDL2
+    if (enable_video) 
         video = std::make_shared<video_sdl>(&cfg,  (driver::low_buttons_fake*)buttons_drv.get());
-    }
-
+#endif
     return {timer_drv, steppers_drv,
         spindles_drv,
         buttons_drv,

@@ -306,10 +306,6 @@ int main(int argc, char** argv)
                         switch ((int)(ppart[0]['G'])) {
                         case 0:
                         case 1:
-                            //  case 4:
-                            //if (video.get() != nullptr) {
-                            //    video->set_g_state((int)(ppart[0]['G']));
-                            //}
                             auto machine_state_prev = machine_state;
 
                             auto time0 = std::chrono::high_resolution_clock::now();
@@ -317,11 +313,6 @@ int main(int argc, char** argv)
                             auto m_commands = program_to_steps(ppart, cfg, *(motor_layout_.get()),
                                 machine_state, [&machine_state](const block_t result) {
                                     machine_state = result;
-                                    // std::cout << "____ program_to_steps:";
-                                    // for (auto& s : machine_state) {
-                                    //     std::cout << s.first << ":" << s.second << " ";
-                                    // }
-                                    // std::cout << std::endl;
                                 });
                             if (!(block_to_distance_with_v_t(st) == block_to_distance_with_v_t(machine_state))) {
                                 std::cout << "states differs: " << block_to_distance_with_v_t(st) << "!=" << block_to_distance_with_v_t(machine_state) << std::endl;
