@@ -40,6 +40,7 @@ public:
     std::shared_ptr<SDL_Renderer> renderer;
 
     std::atomic<bool> active;
+    std::atomic<double> spindle_power;
 
     std::thread loop_thread;
 
@@ -63,7 +64,6 @@ public:
     bool dragging_view = false;
     bool scaling_view = false;
 
-    std::atomic<int> g_state;
 
     void set_steps(const steps_t& st)
     {
@@ -107,10 +107,6 @@ public:
             }
         }
     }
-    void set_g_state(int g)
-    {
-        g_state = g;
-    };
 
     video_sdl(configuration::global* cfg_,  driver::low_buttons_fake* buttons_drv, int width = 640, int height = 480)
     {
@@ -210,17 +206,11 @@ public:
                     t = movements_track;
                 }
                 draw_path(renderer, width, height, t);
-                if (g_state == 0) {
-                    SDL_SetRenderDrawColor(renderer.get(), 255, 128, 128, 255);
-                } else if (g_state == 1) {
-                    SDL_SetRenderDrawColor(renderer.get(), 0, 255, 255, 255);
-                } else {
-                    SDL_SetRenderDrawColor(renderer.get(), 64, 64, 64, 255);
-                }
+                SDL_SetRenderDrawColor(renderer.get(), std::min(255.0,spindle_power*255), 255-(std::min(255.0,spindle_power*255)), 0, 255);
                 for (double i = 0; i < 1.0; i += 0.05) {
                     SDL_RenderDrawPoint(renderer.get(),
-                        s[0] * 1000 / scale_view + view_x + i * s[2] * z_p_x / scale_view,
-                        -s[1] * 1000 / scale_view + view_y + i * -s[2] * z_p_y / scale_view);
+                        s[0] * 1000 / scale_view + view_x + (i*5.0 + s[2]) * z_p_x / scale_view,
+                        -s[1] * 1000 / scale_view + view_y + (-i*5.0 + -s[2]) * z_p_y / scale_view);
                 }
                 //std::cout << "step.. " << s[0] << ", " << s[1] << ", " << s[2] << std::endl;
 
@@ -237,6 +227,9 @@ public:
             }
         });
     }
+    void set_spindle(double spindle_power_level_) {
+        spindle_power = spindle_power_level_;
+    }
     virtual ~video_sdl()
     {
         active = false;
@@ -249,6 +242,9 @@ class video_sdl
 {
 public:
     std::atomic<bool> active;
+    void set_spindle(double spindle_power_level_) {
+
+    }
     void set_steps(const steps_t& st)
     {
     }
@@ -261,9 +257,6 @@ public:
     {
         active = false;
     }
-    void set_g_state(int g){
-
-    };
 };
 #endif
 /// end of visualization
@@ -301,6 +294,7 @@ stepping_simple_timer_factory(configuration::global cfg)
         spindles_drv = std::make_shared<raspigcd::hardware::driver::low_spindles_pwm_fake>(
             [](const int s_i, const double p_i) {
                 std::cout << "SPINDLE " << s_i << " POWER: " << p_i << std::endl;
+                if (video.get() != nullptr) video->set_spindle(p_i);
             });
         fk->on_enable_steppers = [](const std::vector<bool> m) {
             std::cout << "STEPPERS: ";
