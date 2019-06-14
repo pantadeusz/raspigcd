@@ -1,5 +1,7 @@
 # raspigcd2
 
+(WARNING: This version is unstable - please report bugs as issues, API may change)
+
 [![Build Status](https://travis-ci.org/pantadeusz/raspigcd2.svg?branch=master)](https://travis-ci.org/pantadeusz/raspigcd2)
 
 The G-CODE interpreter for Raspberry Pi 3 (it works on older versions, but untested)
