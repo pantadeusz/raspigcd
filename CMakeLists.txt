@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.6.0 FATAL_ERROR)
 
 project (raspigcd2 CXX)
 
-set (raspigcd2_VERSION_MAJOR 0)
-set (raspigcd2_VERSION_MINOR 1)
+set (raspigcd2_VERSION_MAJOR 1)
+set (raspigcd2_VERSION_MINOR 2)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -61,17 +61,34 @@ if(SDL2_FOUND)
   target_link_libraries(gcd ${SDL2_LIBRARIES})
 endif()
 
+SET(PKG_CONFIG_REQUIRES glib-2.0)
+SET(PKG_CONFIG_LIBDIR
+    "\${prefix}/lib"
+)
+SET(PKG_CONFIG_INCLUDEDIR
+    "\${prefix}/include/raspigcd2"
+)
+SET(PKG_CONFIG_LIBS
+    "-L\${libdir} -lraspigcd2"
+)
+SET(PKG_CONFIG_CFLAGS
+    "-I\${includedir}"
+)
+
+CONFIGURE_FILE(
+  "${CMAKE_CURRENT_SOURCE_DIR}/pkg-config.pc.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
+)
+
+
+
 install (TARGETS raspigcd2 DESTINATION lib)
 install (TARGETS gcd DESTINATION bin)
+install (FILES "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
+DESTINATION lib/pkgconfig)
 
-## file(GLOB files "${CMAKE_CURRENT_SOURCE_DIR}/tests/*_test.cpp")
-## foreach(file ${files})
-##   get_filename_component(fn_target ${file}
-##                        NAME)
-##   add_executable(${fn_target} ${file})
-##   target_link_libraries(${fn_target} raspigcd2 ${CMAKE_THREAD_LIBS_INIT})
-##   add_test(NAME ${fn_target} COMMAND "${CMAKE_BINARY_DIR}/${fn_target}" WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" )
-## endforeach()
+
+
 
 file(GLOB_RECURSE tests_SOURCES "${PROJECT_SOURCE_DIR}/tests/*_test.cpp" "${PROJECT_SOURCE_DIR}/tests/*/*_test.cpp")
 add_executable(tests ${tests_SOURCES} "tests/tests.cpp" "thirdparty/lodepng/lodepng.cpp" )

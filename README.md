@@ -2,17 +2,33 @@
 
 [![Build Status](https://travis-ci.org/pantadeusz/raspigcd2.svg?branch=master)](https://travis-ci.org/pantadeusz/raspigcd2)
 
-The second attempt to raspberry pi gcode interpreter
+The G-CODE interpreter for Raspberry Pi 3 (it works on older versions, but untested)
 
 Recent experiments: [on YouTube](https://www.youtube.com/watch?time_continue=1&v=AFNFixXfOOk)
 
 ## Short description
 
-This repository contains my experiments on raspberry pi gcode interpreter
+This is the CLI and library G-CODE interpreter that supports acceleration and deceleration, 
+intelligent G-CODE execution for given machine 
+and smooth movements without RT kernel. It accepts subset of G-CODE. Mainly
 
-It will treat gcode as a complete object and execute it accordingly
+```gcode
+G0
+G1
+M3
+M5
+M17
+M18
+```
 
-the thread will be initialized on gcode exec
+It also support:
+
+* physical buttons
+* execution pause and resume (with break on the given distance)
+* configuration in json file
+* experimental Bezier curve aproximation of path
+* selection of impulse generation strategy
+* stable impulses
 
 ### Execution of gcode
 
@@ -26,15 +42,15 @@ You can turn off optimization of gcode by adding ```--raw``` option. It will tre
 without any additional processing, so impossible turns can be performed. In this
 mode, only G1 and M codes are supported.
 
-# Style
+# Coding style
 
-try to maintain stl style with custom types named with _t as the postfix
-
-tests are in separate files
+STL style with custom types named with _t as the postfix
 
 # Units
 
-Most of units are in SI standard. The velocity and distance, when not marked differently, is presented in mm/s and mm.
+Most of units are in SI standard. 
+The velocity and distance, when not marked differently, 
+is presented in mm/s and mm.
 
 # General interpretation of Gcodes
 
@@ -65,5 +81,7 @@ will  execute as following parts interpreted as separate executions of motor thr
  * M18
 
 # Licensing
+
+AGPL
 
 If you are interested in different (non-exclusive) license, please contact me (author).
