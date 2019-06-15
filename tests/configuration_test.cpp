@@ -108,6 +108,7 @@ TEST_CASE( "Configuration handling", "[configuration]" ) {
         raspigcd::configuration::global cfg2;
         INFO(cfg);
         INFO(cfg2);
+        cfg2.max_velocity_mm_s.at(0) = 12; 
         REQUIRE(!(cfg2 == cfg));
         cfg2.load_defaults();
         REQUIRE(cfg2 == cfg);
