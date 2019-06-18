@@ -108,6 +108,28 @@ block_t last_state_after_program_execution(const program_t& program_, const bloc
     return result;
 }
 
+program_t enrich_gcode_with_feedrate_commands(const program_t& program_, const configuration::global& cfg)
+{
+    auto program = program_;
+    double previous_feedrate_g1 = 0.1;
+    for (auto& p : program) {
+        if (p.count('G')) {
+            if (p['G'] == 0) {
+                p['F'] = *std::max_element(
+                    std::begin(cfg.max_velocity_mm_s),
+                    std::end(cfg.max_velocity_mm_s));
+            } else if (p['G'] == 1) {
+                if (p.count('F')) {
+                    previous_feedrate_g1 = p['F'];
+                } else {
+                    p['F'] = previous_feedrate_g1;
+                }
+            }
+        }
+    }
+    return program;
+}
+
 
 partitioned_program_t insert_additional_nodes_inbetween(partitioned_program_t& partitioned_program_, const block_t& initial_state, const configuration::limits& machine_limits)
 {
@@ -212,11 +234,6 @@ program_t remove_duplicate_blocks(const program_t& program_states, const block_t
     }
     ret.shrink_to_fit();
     return ret;
-}
-
-
-double get_feedrate_for_turn(double angle)
-{
 }
 
 
@@ -349,8 +366,8 @@ auto do_the_acceleration_limiting = [](auto program, const configuration::limits
 
     program_t result = program;
     //result.push_back(current_state);
-    int walk_direction = 1;
-    unsigned int prev_i = 0;
+    //int walk_direction = 1;
+    //unsigned int prev_i = 0;
 
     {
         auto current_state = merge_blocks({
@@ -372,7 +389,7 @@ auto do_the_acceleration_limiting = [](auto program, const configuration::limits
     bool fixing = true;
     while (fixing) {
         fixing = false;
-        for (int i = 1; i < result.size(); i++) {
+        for (int i = 1; i < (int)result.size(); i++) {
             auto A = block_to_distance_t(result[i - 1]);
             auto B = block_to_distance_t(result[i]);
             auto ABvec = B - A;

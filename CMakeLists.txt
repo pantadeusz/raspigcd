@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.6.0 FATAL_ERROR)
 project (raspigcd2 CXX)
 
 set (raspigcd2_VERSION_MAJOR 2)
-set (raspigcd2_VERSION_MINOR 0)
+set (raspigcd2_VERSION_MINOR 0.1)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

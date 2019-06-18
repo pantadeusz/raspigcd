@@ -43,6 +43,17 @@ using block_t = std::map<char, double>;             // represents N001G0X10Y20
 using program_t = std::vector<block_t>;               // represents whole program without empty lines
 using partitioned_program_t = std::vector<program_t>; // represents program partitioned into different sections for optimization and interpretation
 
+
+/**
+ * @brief Adds F to every element in program. This allows for easier interpretation of path
+ */
+program_t enrich_gcode_with_feedrate_commands(const program_t& program_, const configuration::global& cfg);
+
+/**
+ * @brief Add nodes that will allow for acceleration and break control before and after turns
+ * 
+ * The function gets every path segment and checks if it can add another nodes in the segment so the path would be executed like: start-accelerate-constantspeed-break-end
+ */
 partitioned_program_t insert_additional_nodes_inbetween(partitioned_program_t &partitioned_program_, const block_t &initial_state, const configuration::limits &machine_limits);
 
 /**
@@ -72,7 +83,6 @@ distance_t blocks_to_vector_move(const block_t& block_a, const block_t& block_b)
  * @untested
  */
 block_t distance_to_block(const distance_t& dist);
-
 
 
 //movement::path_intent_t generate_path_intent(const program_t& parsed_program_);
