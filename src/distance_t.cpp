@@ -63,7 +63,7 @@ void follow_path_with_velocity(
                 ds -= pos_to_next_len;
             }
             idx_to++;
-            if (idx_to >= path_points_with_velocity.size()) {
+            if ((int)idx_to >= (int)path_points_with_velocity.size()) {
                 on_point(pos);
                 return;
             }

@@ -101,7 +101,7 @@ public:
      * */
     generic_position_t<T,N-1> skip_back() const {
         generic_position_t<T,N-1> ret;
-        for (int i = 0; i < N-1; i++) ret[i] = this->at(i);
+        for (std::size_t i = 0; i < N-1; i++) ret[i] = this->at(i);
         return ret;
     }
     /**
@@ -109,7 +109,7 @@ public:
      * */
     generic_position_t<T,N+1> with_back(const T v) const {
         generic_position_t<T,N+1> ret;
-        for (int i = 0; i < N; i++) ret[i] = this->at(i);
+        for (std::size_t i = 0; i < N; i++) ret[i] = this->at(i);
         ret.back() = v;
         return ret;
     }

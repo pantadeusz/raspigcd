@@ -62,7 +62,7 @@ void inmem::enable_steppers(const std::vector<bool> en)
 inmem::inmem()
 {
     current_steps = {0,0,0};
-    for (int i = 0; i < counters.size(); i++) {
+    for (unsigned i = 0; i < counters.size(); i++) {
         counters[i] = 0;
     }
     enabled = std::vector<bool>(false, counters.size());

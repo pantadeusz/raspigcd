@@ -203,7 +203,7 @@ int main(int argc, char** argv)
                     buttons_drv->on_key(k, on_pause_execution);
                 }
             };
-            auto on_stop_execution = [&stepping, buttons_drv, &break_execution_result](int k, int s) {
+            auto on_stop_execution = [&stepping, buttons_drv, &break_execution_result](int, int s) {
                 if (s == 1) {
                     break_execution_result = 0;
                     stepping->terminate(1000);
