@@ -1,6 +1,6 @@
 # raspigcd2
 
-(WARNING: This version is unstable - please report bugs as issues, API may change)
+(WARNING: This version is unstable - please report bugs as issues, API may change. Previous version is in directory v0.9.1.final.archive)
 
 [![Build Status](https://travis-ci.org/pantadeusz/raspigcd2.svg?branch=master)](https://travis-ci.org/pantadeusz/raspigcd2)
 
@@ -44,17 +44,40 @@ You can turn off optimization of gcode by adding ```--raw``` option. It will tre
 without any additional processing, so impossible turns can be performed. In this
 mode, only G1 and M codes are supported.
 
-# Coding style
+## Build
+
+Quick start:
+
+```bash
+mkdir build
+cd build
+cmake ..
+make -j 2 gcd
+./gcd -c ../v4.json -f your_gcode_file.gcd
+```
+
+### Dependency - Catch2
+
+You should install library for tests:
+
+```bash
+git clone https://github.com/catchorg/Catch2.git
+cd Catch2
+cmake -Bbuild -H. -DBUILD_TESTING=OFF
+sudo cmake --build build/ --target install
+```
+
+## Coding style
 
 STL style with custom types named with _t as the postfix
 
-# Units
+## Units
 
 Most of units are in SI standard. 
 The velocity and distance, when not marked differently, 
 is presented in mm/s and mm.
 
-# General interpretation of Gcodes
+## General interpretation of Gcodes
 
 M codes marks separate sections of gcode
 G codes are processed as a whole
@@ -82,7 +105,7 @@ will  execute as following parts interpreted as separate executions of motor thr
  * G0Z10, G0X0, G0Z0
  * M18
 
-# Licensing
+## Licensing
 
 AGPL
 
