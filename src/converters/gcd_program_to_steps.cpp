@@ -289,10 +289,12 @@ hardware::multistep_commands_t linear_interpolation_to_steps(
 
     // std::cout << back_to_gcode({prog_}) << std::endl;
 
+    std::cout << "reserve 1" << std::endl;
     gcd::block_t state = initial_state_;
     double dt = ((double)conf_.tick_duration_us) / 1000000.0;
     std::vector<distance_with_velocity_t> distances;
     distances.reserve(1000000);
+    std::cout << "reserve 1 OK" << std::endl;
 
     distances.push_back(block_to_distance_with_v_t(state));
     for (const auto& block : prog_) {
@@ -344,7 +346,9 @@ hardware::multistep_commands_t linear_interpolation_to_steps(
         pp.back() = std::max(pp.back(), 0.01); // make v more reasonable
     }
     std::vector<multistep_command> result;
-    result.reserve(200000000);
+    std::cout << "reserve 2" << std::endl;
+    result.reserve(20000000);
+    std::cout << "reserve 2 OK" << std::endl;
     follow_path_with_velocity<5>(distances, [&](const distance_with_velocity_t& position) {
         //if (!(position == pp0)) {
             distance_t dest_pos = {position[0], position[1], position[2], position[3]};
