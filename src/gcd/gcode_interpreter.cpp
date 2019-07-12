@@ -72,7 +72,7 @@ block_t distance_to_block(const distance_t& dist)
 }
 
 /// UNTESTED
-block_t distance_with_velocity_to_block(const distance_t& dist)
+block_t distance_with_velocity_to_block(const distance_with_velocity_t& dist)
 {
     return {
         {'X', dist[0]},

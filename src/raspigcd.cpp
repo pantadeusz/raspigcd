@@ -219,6 +219,12 @@ int main(int argc, char** argv)
 
             buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE, on_pause_execution);
             buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, on_stop_execution);
+
+            buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, on_stop_execution);
+            buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, on_stop_execution);
+            buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, on_stop_execution);
+
+
             converters::program_to_steps_f_t program_to_steps;
             program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
 
@@ -280,8 +286,8 @@ int main(int argc, char** argv)
                             try {
                                 stepping->exec(m_commands, [motor_layout_, &spindles_status, timer_drv, spindles_drv, &break_execution_result, machine_state_prev, last_spindle_on_delay](auto steps_from_origin, auto tick_n) -> int {
                                     std::cout << "break at " << tick_n << " tick" << std::endl;
-                                    steps_from_origin = steps_from_origin + motor_layout_->cartesian_to_steps(block_to_distance_t(machine_state_prev));
-                                    std::cout << "Position: " << motor_layout_->steps_to_cartesian(steps_from_origin) << std::endl;
+                                    //steps_from_origin = steps_from_origin + motor_layout_->cartesian_to_steps(block_to_distance_t(machine_state_prev));
+                                    //std::cout << "Position: " << motor_layout_->steps_to_cartesian(steps_from_origin) << std::endl;
                                     for (auto e : spindles_status) {
                                         spindles_drv->spindle_pwm_power(e.first, 0);
                                     }
@@ -301,11 +307,15 @@ int main(int argc, char** argv)
                                     break_execution_result = -1;
                                     return r;
                                 });
-                            } catch (...) {
+                            } catch (const raspigcd::hardware::execution_terminated &et) {
                                 spindles_drv->spindle_pwm_power(0, 0.0);
                                 steppers_drv->enable_steppers({false});
-                                std::cout << "TERMINATED" << std::endl;
-
+                                auto currstate = block_to_distance_with_v_t(machine_state);
+                                auto ddp = motor_layout_->steps_to_cartesian(et.delta_steps);
+                                for (int i = 0; i < 3; i++) currstate[i] += ddp[i];
+                                currstate[3] = 0.001;
+                                std::cout << "TERMINATED at " << currstate << std::endl;
+                                machine_state = distance_with_velocity_to_block(currstate);
                                 return -2;
                             }
                             break;

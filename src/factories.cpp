@@ -26,8 +26,8 @@ using namespace raspigcd::gcd;
 
 /// Visualization part
 #ifdef HAVE_SDL2
-#include <video.hpp>
 #include <SDL2/SDL.h>
+#include <video.hpp>
 class video_sdl
 {
 public:
@@ -47,6 +47,7 @@ public:
     std::mutex list_mutex;
     configuration::global* cfg;
     std::shared_ptr<motor_layout> ml;
+    driver::low_buttons_fake* buttons_drv;
 
     int z_p_x; // 1000x
     int z_p_y; // 1000x
@@ -75,7 +76,15 @@ public:
             if (!(reduced_a == reduced_b)) {
                 movements_track.push_back(current_position);
             }
+
+            for (int i = 0; i < 3; i++) {
+                if (current_position[i] < -100) {
+                    //std::cout << "TRIGGER FAKE ENDSTOP " << i << std::endl;
+                    buttons_drv->trigger_button_down(i);
+                }
+            }
         }
+
         position_for_fake = st;
     }
 
@@ -103,9 +112,11 @@ public:
         }
     }
 
-    video_sdl(configuration::global* cfg_,  driver::low_buttons_fake* buttons_drv, int width = 640, int height = 480)
+    video_sdl(configuration::global* cfg_, driver::low_buttons_fake* buttons_drv_, int width = 640, int height = 480)
     {
         if (SDL_Init(SDL_INIT_VIDEO) != 0) throw std::invalid_argument("SDL_Init");
+
+        buttons_drv = buttons_drv_;
 
         scale_view = 1000;
         active = true;
@@ -118,7 +129,7 @@ public:
 
         ml = motor_layout::get_instance(*cfg);
         movements_track.push_back(distance_t());
-        loop_thread = std::thread([this, width, height, buttons_drv]() {
+        loop_thread = std::thread([this, width, height]() {
             std::cout << "loop thread..." << std::endl;
 
             window = std::shared_ptr<SDL_Window>(SDL_CreateWindow("GCD Execution Simulator By Tadeusz Puzniakowski",
@@ -150,13 +161,13 @@ public:
                         if ((k >= 0) && (k < 10)) {
                             buttons_drv->trigger_button_down(k);
                         } else if (event.key.keysym.sym == SDLK_LEFT) {
-                            view_x+= 10;
+                            view_x += 10;
                         } else if (event.key.keysym.sym == SDLK_RIGHT) {
-                            view_x-=10;
+                            view_x -= 10;
                         } else if (event.key.keysym.sym == SDLK_UP) {
-                            view_y+=10;
+                            view_y += 10;
                         } else if (event.key.keysym.sym == SDLK_DOWN) {
-                            view_y-=10;
+                            view_y -= 10;
                         } else if (event.key.keysym.sym == SDLK_a) {
                             scale_view += 10;
                         } else if (event.key.keysym.sym == SDLK_q) {
@@ -201,13 +212,12 @@ public:
                     t = movements_track;
                 }
                 draw_path(renderer, width, height, t);
-                SDL_SetRenderDrawColor(renderer.get(), std::min(255.0,spindle_power*255), 255-(std::min(255.0,spindle_power*255)), 0, 255);
+                SDL_SetRenderDrawColor(renderer.get(), std::min(255.0, spindle_power * 255), 255 - (std::min(255.0, spindle_power * 255)), 0, 255);
                 for (double i = 0; i < 1.0; i += 0.05) {
                     SDL_RenderDrawPoint(renderer.get(),
-                        s[0] * 1000 / scale_view + view_x + (i*5.0 + s[2]) * z_p_x / scale_view,
-                        -s[1] * 1000 / scale_view + view_y + (-i*5.0 + -s[2]) * z_p_y / scale_view);
+                        s[0] * 1000 / scale_view + view_x + (i * 5.0 + s[2]) * z_p_x / scale_view,
+                        -s[1] * 1000 / scale_view + view_y + (-i * 5.0 + -s[2]) * z_p_y / scale_view);
                 }
-                //std::cout << "step.. " << s[0] << ", " << s[1] << ", " << s[2] << std::endl;
 
                 {
                     SDL_SetRenderDrawColor(renderer.get(), 16, 128, 32, 255);
@@ -222,7 +232,8 @@ public:
             }
         });
     }
-    void set_spindle(double spindle_power_level_) {
+    void set_spindle(double spindle_power_level_)
+    {
         spindle_power = spindle_power_level_;
     }
     virtual ~video_sdl()
@@ -237,8 +248,8 @@ class video_sdl
 {
 public:
     std::atomic<bool> active;
-    void set_spindle(double spindle_power_level_) {
-
+    void set_spindle(double spindle_power_level_)
+    {
     }
     void set_steps(const steps_t& st)
     {
@@ -329,8 +340,8 @@ stepping_simple_timer_factory(configuration::global cfg)
     }
     std::shared_ptr<stepping_simple_timer> stepping = std::make_shared<stepping_simple_timer>(cfg, steppers_drv, timer_drv);
 #ifdef HAVE_SDL2
-    if (enable_video) 
-        video = std::make_shared<video_sdl>(&cfg,  (driver::low_buttons_fake*)buttons_drv.get());
+    if (enable_video)
+        video = std::make_shared<video_sdl>(&cfg, (driver::low_buttons_fake*)buttons_drv.get());
 #endif
     return {timer_drv, steppers_drv,
         spindles_drv,

@@ -204,7 +204,7 @@ auto linear_interpolation = [](auto x, auto x0, auto y0, auto x1, auto y1) {
 distance_t block_to_distance_t(const block_t& block);
 distance_with_velocity_t block_to_distance_with_v_t(const block_t& block);
 block_t distance_to_block(const distance_t& dist);
-block_t distance_with_velocity_to_block(const distance_t& dist);
+block_t distance_with_velocity_to_block(const distance_with_velocity_t& dist);
 distance_t blocks_to_vector_move(const block_t& block_a, const block_t& block_b);
 
 
