@@ -193,7 +193,7 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 
 
 void raspberry_pi_3::on_key(int btn, std::function<void(int,int)> callback_) {
-    buttons_callbacks.at(btn) = callback_;
+    buttons_callbacks[btn] = callback_;
 }
 std::function<void(int,int)>  raspberry_pi_3::on_key(int btn) {
     return buttons_callbacks.at(btn);
