@@ -53,7 +53,7 @@ mkdir build
 cd build
 cmake ..
 make -j 2 gcd
-./gcd -c ../v4.json -f your_gcode_file.gcd
+sudo ./gcd -c ../v4.json -f your_gcode_file.gcd
 ```
 
 ### Dependency - Catch2
