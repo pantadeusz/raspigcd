@@ -84,7 +84,7 @@
   ],
   "tick_duration_us": 35,
   "douglas_peucker_marigin":0.04,
-  "steps_generator":"linear_interpolation",
+  "steps_generator_1":"linear_interpolation",
   "steps_generator_2":"bezier_spline",
   "lowleveltimer_1": "low_timers_fake",
   "lowleveltimer_2": "low_timers_wait_for"
