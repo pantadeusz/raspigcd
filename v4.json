@@ -1,4 +1,5 @@
 {
+  "machine_name": "frezia_hd_2",
   "buttons": [
     {
       "pin": 21,

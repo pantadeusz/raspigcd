@@ -217,20 +217,21 @@ int main(int argc, char** argv)
             std::map<int, double> spindles_status;
             long int last_spindle_on_delay = 7000;
             std::atomic<bool> cancel_execution = false;
+
+
+
+            for (std::size_t command_block_index = 0; (command_block_index < program_parts.size()) && (!cancel_execution); command_block_index++) {
+                auto& ppart = program_parts[command_block_index];
+
                 std::atomic<bool> paused = false;
-                std::function<void(int, int)> on_pause_execution;
-                auto on_resume_execution = [machine, &on_pause_execution, &paused](int k, int s) {
+                std::function<void(int, int)> on_pause_execution = [machine, &paused](int k, int s) {
                     if (s == 1) {
-                        std::cout << "######## resume" << std::endl;
-                        machine.buttons_drv->on_key(k, on_pause_execution);
-                        paused = false;
-                    }
-                };
-                on_pause_execution = [machine, &on_resume_execution, &paused](int k, int s) {
-                    if (s == 1) {
-                        machine.buttons_drv->on_key(k, on_resume_execution);
-                        paused = true;
-                        machine.stepping->terminate(1000);
+                        if (paused) {
+                            paused = false;
+                        } else {
+                            paused = true;
+                            machine.stepping->terminate(1000);
+                        }
                     }
                 };
 
@@ -240,12 +241,6 @@ int main(int argc, char** argv)
                         machine.stepping->terminate(1000);
                     }
                 };
-
-
-
-            for (std::size_t command_block_index = 0; (command_block_index < program_parts.size()) && (!cancel_execution); command_block_index++) {
-                auto& ppart = program_parts[command_block_index];
-
 
                 machine.buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE, on_pause_execution);
                 machine.buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, on_stop_execution);

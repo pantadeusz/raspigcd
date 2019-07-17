@@ -1,4 +1,5 @@
 {
+  "machine_name": "roberts_hardware",
   "buttons": [
     {
       "pin": 21,
