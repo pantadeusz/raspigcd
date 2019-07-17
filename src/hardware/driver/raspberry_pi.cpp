@@ -157,6 +157,9 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
         buttons_state.push_back(0);
         buttons_callbacks.push_back([](int,int){});
     }
+    while (buttons_callbacks.size() < 100) {
+        buttons_callbacks.push_back([](int,int){});
+    }
 
     // enable pull-up on selected gpios
     GPIO_PULL = 2;
@@ -188,10 +191,17 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 
 
 void raspberry_pi_3::on_key(int btn, std::function<void(int,int)> callback_) {
+    std::cout << "set onkey callback" << std::endl;
     buttons_callbacks[btn] = callback_;
+    std::cout << "                    ok" << std::endl;
 }
 std::function<void(int,int)>  raspberry_pi_3::on_key(int btn) {
+    std::cout << "get onkey callback" << std::endl;
+    try {
     return buttons_callbacks.at(btn);
+    } catch (...) {
+        return [](int a,int b){std::cout << "keybord handler not set " << a << " " << b << std::endl;};
+    }
 }
 std::vector < int > raspberry_pi_3::keys_state() {
     return buttons_state;

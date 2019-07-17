@@ -1,5 +1,5 @@
 {
-  "machine_name": "frezia_hd_3profiles",
+  "machine_name": "frezia_legacy",
   "buttons": [
     {
       "pin": 21,
@@ -37,7 +37,7 @@
     110.0,
     220.0
   ],
-  "motion_layout": "corexy",
+  "motion_layout": "cartesian",
   "scale": [
     -1.0,
     1.0,
@@ -58,19 +58,19 @@
       "dir": 27,
       "en": 10,
       "step": 22,
-      "steps_per_mm": 100.0
+      "steps_per_mm": 200.0
     },
     {
       "dir": 4,
       "en": 10,
       "step": 17,
-      "steps_per_mm": 100.0
+      "steps_per_mm": 200.0
     },
     {
       "dir": 9,
       "en": 10,
       "step": 11,
-      "steps_per_mm": 160.0
+      "steps_per_mm": 1600.0
     },
     {
       "dir": 0,
@@ -81,4 +81,3 @@
   ],
   "tick_duration_us": 50
 }
-
