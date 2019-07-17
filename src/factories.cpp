@@ -80,10 +80,10 @@ public:
             if (current_position[0] < -10) { // 10mm left
                 buttons_drv->trigger_button_down(0);
             }
-            if (current_position[1] < 10) { // 10mm forward (y positive)
+            if (current_position[1] > 10) { // 10mm forward (y positive)
                 buttons_drv->trigger_button_down(1);
             }
-            if (current_position[2] < 90) { // 90mm up
+            if (current_position[2] > 90) { // 90mm up
                 buttons_drv->trigger_button_down(2);
             }
         }
