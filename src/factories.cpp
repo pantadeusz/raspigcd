@@ -276,7 +276,7 @@ namespace raspigcd {
 #ifdef HAVE_SDL2
 std::shared_ptr<video_sdl> video;
 #endif
-
+/*
 std::tuple<
     std::shared_ptr<raspigcd::hardware::low_timers>,
     std::shared_ptr<raspigcd::hardware::low_steppers>,
@@ -284,7 +284,8 @@ std::tuple<
     std::shared_ptr<raspigcd::hardware::low_buttons>,
     std::shared_ptr<raspigcd::hardware::motor_layout>,
     std::shared_ptr<raspigcd::hardware::stepping_simple_timer>>
-stepping_simple_timer_factory(configuration::global cfg)
+    */
+execution_objects_t stepping_simple_timer_factory(configuration::global cfg)
 {
 #ifdef HAVE_SDL2
     bool enable_video = false;
@@ -346,10 +347,13 @@ stepping_simple_timer_factory(configuration::global cfg)
     if (enable_video)
         video = std::make_shared<video_sdl>(&cfg, (driver::low_buttons_fake*)buttons_drv.get());
 #endif
-    return {timer_drv, steppers_drv,
+    return {
+        timer_drv,
+        steppers_drv,
         spindles_drv,
         buttons_drv,
         motor_layout_,
-        stepping};
+        stepping
+    };
 }
 } // namespace raspigcd

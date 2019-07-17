@@ -62,7 +62,7 @@ public:
 	*
 	* @param start_steps the initial position of motors in steps
 	* @param commands_to_do array of commands to execute
-	* // @param on_step_ function to execute on each step. This function can throw exceptions to break execution of steps
+	* @param on_execution_break function to execute after break. If function returns 0, then execution is terminated. If function returns non-zero the execution continues
 	* @return steps_t final position of the machine in steps
 	*/
     virtual void exec(const multistep_commands_t& commands_to_do,

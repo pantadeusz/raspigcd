@@ -21,14 +21,23 @@
 
 namespace raspigcd {
 
-std::tuple<
-    std::shared_ptr<raspigcd::hardware::low_timers>,
-    std::shared_ptr<raspigcd::hardware::low_steppers>,
-    std::shared_ptr<raspigcd::hardware::low_spindles_pwm>,
-    std::shared_ptr<raspigcd::hardware::low_buttons>,
-    std::shared_ptr<raspigcd::hardware::motor_layout>,
-    std::shared_ptr<raspigcd::hardware::stepping_simple_timer>>
-stepping_simple_timer_factory(configuration::global cfg);
+struct execution_objects_t {
+    std::shared_ptr<raspigcd::hardware::low_timers> timer_drv;
+    std::shared_ptr<raspigcd::hardware::low_steppers> steppers_drv;
+    std::shared_ptr<raspigcd::hardware::low_spindles_pwm> spindles_drv;
+    std::shared_ptr<raspigcd::hardware::low_buttons> buttons_drv;
+    std::shared_ptr<raspigcd::hardware::motor_layout> motor_layout_;
+    std::shared_ptr<raspigcd::hardware::stepping_simple_timer> stepping;
+};
+
+// std::tuple<
+//     std::shared_ptr<raspigcd::hardware::low_timers>,
+//     std::shared_ptr<raspigcd::hardware::low_steppers>,
+//     std::shared_ptr<raspigcd::hardware::low_spindles_pwm>,
+//     std::shared_ptr<raspigcd::hardware::low_buttons>,
+//     std::shared_ptr<raspigcd::hardware::motor_layout>,
+//     std::shared_ptr<raspigcd::hardware::stepping_simple_timer>>
+execution_objects_t stepping_simple_timer_factory(configuration::global cfg);
 
 }
 

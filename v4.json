@@ -2,23 +2,28 @@
   "buttons": [
     {
       "pin": 21,
-      "pullup": true
+      "pullup": true,
+      "invert": false
     },
     {
       "pin": 20,
-      "pullup": true
+      "pullup": true,
+      "invert": false
     },
     {
       "pin": 16,
-      "pullup": true
+      "pullup": true,
+      "invert": false
     },
     {
       "pin": 12,
-      "pullup": true
+      "pullup": true,
+      "invert": false
     },
     {
       "pin": 26,
-      "pullup": true
+      "pullup": true,
+      "invert": false
     }
   ],
   "lasers": [],

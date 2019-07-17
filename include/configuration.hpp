@@ -47,6 +47,7 @@ class button
 public:
     int pin;
     bool pullup;
+    bool invert; // change 1 to 0 and change 0 to 1
 };
 
 /**

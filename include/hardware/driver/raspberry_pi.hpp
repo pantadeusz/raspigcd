@@ -35,6 +35,20 @@
 #include <memory>
 #include <thread>
 
+
+                /*
+// TODO
+
+                std::atomic_flag on_pause_execution_wait = ATOMIC_FLAG_INIT;
+                 while (lock.test_and_set(std::memory_order_acquire))  // acquire lock
+             ; // spin
+        std::cout << "Output from thread " << n << '\n';
+        lock.clear(std::memory_order_release);               // release lock
+                */
+
+
+
+
 namespace raspigcd {
 namespace hardware {
 

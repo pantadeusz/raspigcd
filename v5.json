@@ -2,23 +2,28 @@
   "buttons": [
     {
       "pin": 21,
-      "pullup": true
+      "pullup": true,
+      "invert": false
     },
     {
       "pin": 20,
-      "pullup": true
+      "pullup": true,
+      "invert": false
     },
     {
       "pin": 16,
-      "pullup": true
+      "pullup": true,
+      "invert": false
     },
     {
       "pin": 12,
-      "pullup": true
+      "pullup": true,
+      "invert": false
     },
     {
       "pin": 26,
-      "pullup": true
+      "pullup": true,
+      "invert": false
     }
   ],
   "lasers": [],
@@ -83,9 +88,9 @@
     }
   ],
   "tick_duration_us": 35,
-  "douglas_peucker_marigin":0.04,
-  "steps_generator_1":"linear_interpolation",
-  "steps_generator_2":"bezier_spline",
+  "douglas_peucker_marigin": 0.04,
+  "steps_generator_1": "linear_interpolation",
+  "steps_generator_2": "bezier_spline",
   "lowleveltimer_1": "low_timers_fake",
   "lowleveltimer_2": "low_timers_wait_for"
 }

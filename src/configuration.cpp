@@ -80,10 +80,10 @@ global& global::load_defaults()
         //stepper(0, 10, 5, 100.0)
     };
     buttons = {
-        {.pin = 21, .pullup = true},
-        {.pin = 20, .pullup = true},
-        {.pin = 16, .pullup = true},
-        {.pin = 12, .pullup = true}};
+        {.pin = 21, .pullup = true, .invert = false},
+        {.pin = 20, .pullup = true, .invert = false},
+        {.pin = 16, .pullup = true, .invert = false},
+        {.pin = 12, .pullup = true, .invert = false}};
     spindles = {
         {.pin = 18,
             .cycle_time_seconds = 0.1,
@@ -176,13 +176,15 @@ void to_json(nlohmann::json& j, const button& p)
 {
     j = nlohmann::json{
         {"pin", p.pin},
-        {"pullup", p.pullup}};
+        {"pullup", p.pullup},
+        {"invert", p.invert}};
 }
 
 void from_json(const nlohmann::json& j, button& p)
 {
     p.pin = j.value("pin", p.pin);
     p.pullup = j.value("pullup", p.pullup);
+    p.invert = j.value("invert", p.invert);
 }
 
 
