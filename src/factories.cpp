@@ -77,11 +77,14 @@ public:
                 movements_track.push_back(current_position);
             }
 
-            for (int i = 0; i < 3; i++) {
-                if (current_position[i] < -100) {
-                    //std::cout << "TRIGGER FAKE ENDSTOP " << i << std::endl;
-                    buttons_drv->trigger_button_down(i);
-                }
+            if (current_position[0] < -10) { // 10mm left
+                buttons_drv->trigger_button_down(0);
+            }
+            if (current_position[1] < 10) { // 10mm forward (y positive)
+                buttons_drv->trigger_button_down(1);
+            }
+            if (current_position[2] < 90) { // 90mm up
+                buttons_drv->trigger_button_down(2);
             }
         }
 
