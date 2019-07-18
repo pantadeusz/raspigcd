@@ -155,6 +155,34 @@ partitioned_program_t preprocess_program_parts(partitioned_program_t program_par
 }
 
 
+void execute_calculated_multistep(raspigcd::hardware::multistep_commands_t m_commands, execution_objects_t machine, std::function<void(int, int)> on_stop_execution, std::atomic<bool>& cancel_execution, std::atomic<bool>& paused, long int last_spindle_on_delay, std::map<int, double>& spindles_status)
+{
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, on_stop_execution);
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, on_stop_execution);
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, on_stop_execution);
+
+    machine.stepping->exec(m_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
+        std::cout << "break at " << tick_n << " tick" << std::endl;
+        for (auto e : spindles_status) {
+            // stop spindles and lasers ASAP!
+            machine.spindles_drv->spindle_pwm_power(e.first, 0);
+        }
+        if (cancel_execution) return 0; // stop execution
+        while ((paused) && (!cancel_execution)) {
+            machine.timer_drv->wait_us(10000);
+        }
+        if (cancel_execution) return 0; // stop execution
+
+        for (auto e : spindles_status) {
+            machine.spindles_drv->spindle_pwm_power(e.first, e.second);
+            using namespace std::chrono_literals;
+            machine.timer_drv->wait_us(1000 * last_spindle_on_delay);
+        }
+        return 1; // continue execuiton
+    });
+}
+
+
 int execute_command_parts(partitioned_program_t program_parts, execution_objects_t machine, converters::program_to_steps_f_t program_to_steps, configuration::global cfg)
 {
     std::list<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps;
@@ -275,31 +303,7 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
                         calculated_multisteps.pop_front();
                         calculated_multisteps_m.unlock();
                         try {
-                            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, on_stop_execution);
-                            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, on_stop_execution);
-                            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, on_stop_execution);
-
-                            machine.stepping->exec(m_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
-                                std::cout << "break at " << tick_n << " tick" << std::endl;
-                                for (auto e : spindles_status) {
-                                    // stop spindles and lasers ASAP!
-                                    machine.spindles_drv->spindle_pwm_power(e.first, 0);
-                                }
-                                if (cancel_execution) return 0; // stop execution
-                                while ((paused) && (!cancel_execution)) {
-                                    machine.timer_drv->wait_us(10000);
-                                }
-                                if (cancel_execution) return 0; // stop execution
-
-                                for (auto e : spindles_status) {
-                                    machine.spindles_drv->spindle_pwm_power(e.first, e.second);
-                                    using namespace std::chrono_literals;
-                                    //std::cout << "wait for spindle..." << std::endl;
-                                    machine.timer_drv->wait_us(1000 * last_spindle_on_delay);
-                                    //std::cout << "wait for spindle... OK" << std::endl;
-                                }
-                                return 1; // continue execuiton
-                            });
+                            execute_calculated_multistep(m_commands, machine, on_stop_execution, cancel_execution, paused, last_spindle_on_delay, spindles_status);
                         } catch (const raspigcd::hardware::execution_terminated& et) {
                             machine.spindles_drv->spindle_pwm_power(0, 0.0);
                             machine.steppers_drv->enable_steppers({false});
