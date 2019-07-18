@@ -100,4 +100,5 @@ TEST_CASE("converters - remove_g92_from_gcode - gcodes with G92", "[gcd][convert
         REQUIRE(result.at(1).at('X') == Approx(0.0));
         REQUIRE(result.at(1).at('Y') == Approx(0.0));
     }
+
 }
