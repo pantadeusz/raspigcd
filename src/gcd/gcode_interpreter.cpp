@@ -760,10 +760,19 @@ program_t optimize_path_douglas_peucker(const program_t& program_, const double 
     block_t state = p0_;
     for (auto e : group_gcode_commands(program_)) {
         // std::cout << "e: " << e.size() << std::endl;
-        auto pp = optimize_path_douglas_peucker_g(e, epsilon, p0_);
-        // std::cout << "pp: " << pp.size() << std::endl;
-        state = last_state_after_program_execution(e, state);
-        ret.insert(ret.end(), pp.begin(), pp.end());
+        if (e.at(0).count('G') && e.at(0).at('G') == 0) {
+            auto pp = optimize_path_douglas_peucker_g(e, epsilon, p0_);
+            // std::cout << "pp: " << pp.size() << std::endl;
+            state = last_state_after_program_execution(e, state);
+            ret.insert(ret.end(), pp.begin(), pp.end());
+        } else if (e.at(0).count('G') && e.at(0).at('G') == 1) {
+            auto pp = optimize_path_douglas_peucker_g(e, epsilon, p0_);
+            // std::cout << "pp: " << pp.size() << std::endl;
+            state = last_state_after_program_execution(e, state);
+            ret.insert(ret.end(), pp.begin(), pp.end());
+        } else {
+            ret.insert(ret.end(), e.begin(), e.end());
+        }
     }
     return ret;
 }

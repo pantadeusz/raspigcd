@@ -29,7 +29,7 @@
 namespace raspigcd {
 namespace gcd {
 
-program_t remove_g92_from_gcode(const program_t &input_program_);
+program_t remove_g92_from_gcode(const program_t &input_program_,block_t current_state = {});
 
 }
 } // namespace raspigcd

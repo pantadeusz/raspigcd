@@ -124,9 +124,8 @@ partitioned_program_t preprocess_program_parts(partitioned_program_t program_par
                     machine_state = last_state_after_program_execution(ppart, machine_state);
                     break;
                 case 4:
-                    prepared_program.insert(prepared_program.end(), ppart.begin(), ppart.end());
-                    break;
                 case 28:
+                case 92:
                     prepared_program.insert(prepared_program.end(), ppart.begin(), ppart.end());
                     break;
                 }
@@ -336,7 +335,16 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
                         if (ppart[0].count('Z')) machine_state['Z'] = 0.0;
                         push_multisteps({{}, machine_state});
                         if (cancel_execution) return -100;
-                    }
+                    } break;
+                    case 92: {
+                        for (auto pelem:ppart) {
+                            if (pelem.count('X')) machine_state['X'] = pelem['X'];
+                            if (pelem.count('Y')) machine_state['Y'] = pelem['Y'];
+                            if (pelem.count('Z')) machine_state['Z'] = pelem['Z'];
+                        }
+                        push_multisteps({{}, machine_state});
+                        if (cancel_execution) return -100;
+                    } break;
                     }
                 } else {
                     for (auto& m : ppart) {
@@ -416,23 +424,20 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
                     } break;
                     case 28: {
                         auto [m_commands, machine_state] = pop_multisteps();
-
-
                         for (auto pelem:ppart) {
                             if ((int)(pelem.count('X'))) {
-                                std::cout << "unsupported yet... home X" << std::endl;
                                 home_position_find('X', program_to_steps, cfg, machine,  cancel_execution, paused, last_spindle_on_delay,spindles_status);
                             }
                             if ((int)(pelem.count('Y'))) {
-                                std::cout << "unsupported yet... home Y" << std::endl;
                                 home_position_find('Y', program_to_steps, cfg, machine,  cancel_execution, paused, last_spindle_on_delay,spindles_status);
                             }
                             if ((int)(pelem.count('Z'))) {
-                                std::cout << "unsupported yet... home Z" << std::endl;
                                 home_position_find('Z', program_to_steps, cfg, machine,  cancel_execution, paused, last_spindle_on_delay,spindles_status);
                             }
                         }
-                        std::cout << "unsupported yet... home" << std::endl;
+                    } break;
+                    case 92: {
+                        auto [m_commands, machine_state] = pop_multisteps();
                     } break;
                     }
                 } else {
@@ -517,7 +522,7 @@ int main(int argc, char** argv)
 
             auto program = gcode_to_maps_of_arguments(gcode_text);
             program = enrich_gcode_with_feedrate_commands(std::move(program), cfg);
-            program = remove_g92_from_gcode(program);
+            //program = remove_g92_from_gcode(program);
             if (!raw_gcode) {
                 program = optimize_path_douglas_peucker(program, cfg.douglas_peucker_marigin);
             }
@@ -527,8 +532,8 @@ int main(int argc, char** argv)
             if (!raw_gcode) {
                 std::cerr << "preprocessing gcode" << std::endl;
                 program_parts = insert_additional_nodes_inbetween(program_parts, machine_state, cfg);
-                program_parts = preprocess_program_parts(program_parts, cfg);
             std::cout << back_to_gcode(program_parts) << std::endl;
+                program_parts = preprocess_program_parts(program_parts, cfg);
             } // if prepare paths
 
             std::cout << "STARTING...." << std::endl;
