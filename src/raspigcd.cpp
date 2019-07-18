@@ -126,6 +126,9 @@ partitioned_program_t preprocess_program_parts(partitioned_program_t program_par
                 case 4:
                     prepared_program.insert(prepared_program.end(), ppart.begin(), ppart.end());
                     break;
+                case 28:
+                    prepared_program.insert(prepared_program.end(), ppart.begin(), ppart.end());
+                    break;
                 }
             } else {
                 //std::cout << "M PART: " << ppart.size() << std::endl;
@@ -189,6 +192,35 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
     std::mutex calculated_multisteps_m;
     std::atomic<bool> cancel_execution = false;
 
+    auto push_multisteps = [&](std::pair<hardware::multistep_commands_t, block_t> multisteps_pair) {
+        while (!cancel_execution) {
+            calculated_multisteps_m.lock();
+            if (calculated_multisteps.size() < 2) {
+                calculated_multisteps.push_back(std::move(multisteps_pair));
+                calculated_multisteps_m.unlock();
+                break;
+            }
+            calculated_multisteps_m.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
+    };
+    auto pop_multisteps = [&]() -> std::pair<hardware::multistep_commands_t, block_t> {
+        while (true) {
+            calculated_multisteps_m.lock();
+            if (calculated_multisteps.size() > 0) {
+                calculated_multisteps_m.unlock();
+                break;
+            }
+            calculated_multisteps_m.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(60));
+        }
+        calculated_multisteps_m.lock();
+        auto [m_commands, machine_state] = calculated_multisteps.front();
+        calculated_multisteps.pop_front();
+        calculated_multisteps_m.unlock();
+        return {m_commands, machine_state};
+    };
+
     auto multistep_calculation_promise = std::thread([&]() { // calculate multisteps
         block_t machine_state = {{'F', 0.5}};
 
@@ -218,16 +250,8 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
                         auto time1 = std::chrono::high_resolution_clock::now();
                         double dt = std::chrono::duration<double, std::milli>(time1 - time0).count();
                         std::cout << "calculations took " << dt << " milliseconds; have " << m_commands.size() << " steps to execute" << std::endl;
-                        while (!cancel_execution) {
-                            calculated_multisteps_m.lock();
-                            if (calculated_multisteps.size() < 2) {
-                                calculated_multisteps.push_back({m_commands, machine_state});
-                                calculated_multisteps_m.unlock();
-                                break;
-                            }
-                            calculated_multisteps_m.unlock();
-                            std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                        }
+                        push_multisteps({m_commands, machine_state});
+
                         if (cancel_execution) return -100;
                     }
                 } else {
@@ -288,20 +312,8 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
                 if (ppart[0].count('M') == 0) {
                     switch ((int)(ppart[0].at('G'))) {
                     case 0:
-                    case 1:
-                        while (true) {
-                            calculated_multisteps_m.lock();
-                            if (calculated_multisteps.size() > 0) {
-                                calculated_multisteps_m.unlock();
-                                break;
-                            }
-                            calculated_multisteps_m.unlock();
-                            std::this_thread::sleep_for(std::chrono::milliseconds(60));
-                        }
-                        calculated_multisteps_m.lock();
-                        auto [m_commands, machine_state] = calculated_multisteps.front();
-                        calculated_multisteps.pop_front();
-                        calculated_multisteps_m.unlock();
+                    case 1: {
+                        auto [m_commands, machine_state] = pop_multisteps();
                         try {
                             execute_calculated_multistep(m_commands, machine, on_stop_execution, cancel_execution, paused, last_spindle_on_delay, spindles_status);
                         } catch (const raspigcd::hardware::execution_terminated& et) {
@@ -316,10 +328,21 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
                             machine_state = distance_with_velocity_to_block(currstate);
                             return -2;
                         }
-                        break;
-                        //case 28:
-                        //
-                        //    break;
+                    } break;
+                    case 28: {
+                        for (auto pelem:ppart) {
+                            if ((int)(pelem.count('X'))) {
+                                std::cout << "unsupported yet... home X" << std::endl;
+                            }
+                            if ((int)(pelem.count('Y'))) {
+                                std::cout << "unsupported yet... home Y" << std::endl;
+                            }
+                            if ((int)(pelem.count('Z'))) {
+                                std::cout << "unsupported yet... home Z" << std::endl;
+                            }
+                        }
+                        std::cout << "unsupported yet... home" << std::endl;
+                    } break;
                     }
                 } else {
                     auto wait_for_component_to_start = [](auto m, int t = 3000) {
@@ -407,11 +430,14 @@ int main(int argc, char** argv)
             if (!raw_gcode) {
                 program = optimize_path_douglas_peucker(program, cfg.douglas_peucker_marigin);
             }
-            auto program_parts = group_gcode_commands(program);
+            auto program_parts = group_gcode_commands(std::move(program));
+
             block_t machine_state = {{'F', 0.5}};
             if (!raw_gcode) {
+                std::cerr << "preprocessing gcode" << std::endl;
                 program_parts = insert_additional_nodes_inbetween(program_parts, machine_state, cfg);
                 program_parts = preprocess_program_parts(program_parts, cfg);
+            std::cout << back_to_gcode(program_parts) << std::endl;
             } // if prepare paths
 
             std::cout << "STARTING...." << std::endl;

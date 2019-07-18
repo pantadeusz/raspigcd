@@ -146,7 +146,7 @@ partitioned_program_t insert_additional_nodes_inbetween(partitioned_program_t& p
                     if ((block.at('G') == 0) || (block.at('G') == 1)) {
                         auto next_state = merge_blocks(current_state, block);
                         distance_t move_vec = blocks_to_vector_move(current_state, next_state);
-                        if (move_vec.length() < 0.01) {
+                        if (move_vec.length() < 0.1) {
                             nsubprog.push_back(block);
                         } else {
                             double max_accel = machine_limits.proportional_max_accelerations_mm_s2(move_vec);
@@ -212,8 +212,7 @@ program_t remove_duplicate_blocks(const program_t& program_states, const block_t
         initial_state);
     for (auto s : program_states) {
         if (s.count('M') == 0) {
-            if (s.count('G') &&
-                ((s.at('G') == 0) || (s.at('G') == 1) || (s.at('G') == 92))) {
+            if (s.count('G') && ((s.at('G') == 0) || (s.at('G') == 1) || (s.at('G') == 92))) {
                 auto new_state = merge_blocks(current_state, s);
                 if (!((blocks_to_vector_move(new_state, current_state).length() == 0) &&
                         (new_state['F'] == current_state['F']))) {
@@ -593,7 +592,7 @@ partitioned_program_t group_gcode_commands(const program_t& program_states, cons
         } else {
             if (e.count('G')) {
                 if (generated_program.back().back().count('G')) {
-                    if ((generated_program.back().front().at('G') == e.at('G'))) {
+                    if ((generated_program.back().front().at('G') == e.at('G')) && (e.at('G') <= 2)) {
                         generated_program.back().push_back(e);
                     } else {
                         generated_program.push_back({e});
