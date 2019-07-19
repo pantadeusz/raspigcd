@@ -34,6 +34,7 @@
 #include <map>
 #include <memory>
 #include <thread>
+#include <future>
 
 
                 /*
@@ -70,13 +71,13 @@ private:
     std::vector<int> buttons_state;
     std::vector<std::function<void(int,int)> > buttons_callbacks;
 
-    bool _threads_alive;
-    std::vector<std::thread> _spindle_threads;
+    std::atomic<bool> _threads_alive;
+    std::vector<std::future<void>> _spindle_threads;
     std::vector<double> _spindle_duties;
 
     std::vector<bool> _enabled_steppers;
 
-    std::thread _btn_thread;
+    std::future<void> _btn_thread;
 
     struct bcm2835_peripheral gpio;
 

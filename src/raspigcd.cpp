@@ -261,7 +261,50 @@ void home_position_find(char axis_id, converters::program_to_steps_f_t program_t
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](auto, auto) {});
 }
 
+template<class T>
+class fifo_c {
+    std::atomic_flag lock;
+    std::list<T> data;
+public:
+    fifo_c<T>():lock(ATOMIC_FLAG_INIT){};
+    T get(std::atomic<bool> &cancel_execution)
+    {
+        int counter = 0;
+        while (!cancel_execution) {
+            while (lock.test_and_set(std::memory_order_acquire));
+            if ((counter % 10) == 0) std::cout << "get: " << data.size() << std::endl;
+            if (data.size() > 0) {
+                auto ret = data.front();
+                data.pop_front();
+                lock.clear(std::memory_order_release);
+                return ret;
+            } else {
+                lock.clear(std::memory_order_release);
+                std::this_thread::sleep_for(std::chrono::milliseconds(191));
+            }
+        }
+        throw std::invalid_argument("fifo_c: the get from front broken.");
+    }
 
+    void put(std::atomic<bool> &cancel_execution, T value, int max_queue_size = 3) {
+        int counter = 0;
+        while (!cancel_execution) {
+            while (lock.test_and_set(std::memory_order_acquire));
+            if ((counter % 50) == 0) std::cout << "put: " << data.size() << std::endl;
+            if (data.size() < max_queue_size) {
+                data.push_back(value);
+                lock.clear(std::memory_order_release);
+                return;
+            } else {
+                lock.clear(std::memory_order_release);
+                std::this_thread::sleep_for(std::chrono::milliseconds(40));
+            }
+            counter ++;
+        }
+        throw std::invalid_argument("fifo_c: the put method broken.");
+    }
+};
+/*
 auto push_multisteps = [](std::list<std::pair<hardware::multistep_commands_t, block_t>>& calculated_multisteps, std::mutex& calculated_multisteps_m, std::atomic<bool>& cancel_execution, std::pair<hardware::multistep_commands_t, block_t> multisteps_pair) {
     while (!cancel_execution) {
         calculated_multisteps_m.lock();
@@ -294,13 +337,12 @@ auto pop_multisteps = [](std::list<std::pair<hardware::multistep_commands_t, blo
         throw std::invalid_argument("the calculated_multisteps queue is empty. Probably cancel_execution is set to true.");
     }
 };
-
+*/
 /**
  * @brief produces series of multistep steps series filling the buffer that is a list of multistep commands. It can be canceled by setting cancel_execution to true.
  * 
  */
-auto multistep_producer_for_execution = [](std::list<std::pair<hardware::multistep_commands_t, block_t>>& calculated_multisteps,
-                                            std::mutex& calculated_multisteps_m,
+auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_commands_t, block_t>>& calculated_multisteps,
                                             partitioned_program_t& program_parts,
                                             execution_objects_t machine,
                                             converters::program_to_steps_f_t program_to_steps,
@@ -321,6 +363,7 @@ auto multistep_producer_for_execution = [](std::list<std::pair<hardware::multist
 
                     auto time0 = std::chrono::high_resolution_clock::now();
                     block_t st = last_state_after_program_execution(ppart, machine_state);
+                    std::cout << "program_to_steps ... " << back_to_gcode({ppart}) << std::endl;
                     auto m_commands = program_to_steps(ppart, cfg, *(machine.motor_layout_.get()),
                         machine_state, [&machine_state](const gcd::block_t result) {
                             machine_state = result;
@@ -334,7 +377,7 @@ auto multistep_producer_for_execution = [](std::list<std::pair<hardware::multist
                     auto time1 = std::chrono::high_resolution_clock::now();
                     double dt = std::chrono::duration<double, std::milli>(time1 - time0).count();
                     std::cout << "calculations took " << dt << " milliseconds; have " << m_commands.size() << " steps to execute" << std::endl;
-                    push_multisteps(calculated_multisteps, calculated_multisteps_m, cancel_execution, {m_commands, machine_state});
+                    calculated_multisteps.put(cancel_execution, {m_commands, machine_state});
 
                     if (cancel_execution) return -100;
                 } break;
@@ -342,7 +385,7 @@ auto multistep_producer_for_execution = [](std::list<std::pair<hardware::multist
                     if (ppart[0].count('X')) machine_state['X'] = 0.0;
                     if (ppart[0].count('Y')) machine_state['Y'] = 0.0;
                     if (ppart[0].count('Z')) machine_state['Z'] = 0.0;
-                    push_multisteps(calculated_multisteps, calculated_multisteps_m, cancel_execution, {{}, machine_state});
+                    calculated_multisteps.put(cancel_execution,  {{}, machine_state});
                     if (cancel_execution) return -100;
                 } break;
                 case 92: {
@@ -351,7 +394,7 @@ auto multistep_producer_for_execution = [](std::list<std::pair<hardware::multist
                         if (pelem.count('Y')) machine_state['Y'] = pelem['Y'];
                         if (pelem.count('Z')) machine_state['Z'] = pelem['Z'];
                     }
-                    push_multisteps(calculated_multisteps, calculated_multisteps_m, cancel_execution, {{}, machine_state});
+                    calculated_multisteps.put(cancel_execution, {{}, machine_state});
                     if (cancel_execution) return -100;
                 } break;
                 }
@@ -379,16 +422,36 @@ auto multistep_producer_for_execution = [](std::list<std::pair<hardware::multist
 
 int execute_command_parts(partitioned_program_t program_parts, execution_objects_t machine, converters::program_to_steps_f_t program_to_steps, configuration::global cfg)
 {
-    std::list<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps;
-    std::mutex calculated_multisteps_m;
+    fifo_c<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps;
     std::atomic<bool> cancel_execution = false;
+    std::atomic<bool> paused = false;
+    std::function<void(int, int)> on_pause_execution = [machine, &paused](int, int s) {
+        if (s == 1) {
+            if (paused) {
+                paused = false;
+            } else {
+                paused = true;
+                machine.stepping->terminate(1000);
+            }
+        }
+    };
+
+    auto on_stop_execution = [machine, &program_parts, &cancel_execution](int k, int s) {
+        if (s == 1) {
+            std::cout << "on_stop_execution " << k << "  " << s << std::endl;
+            cancel_execution = true;
+            machine.stepping->terminate(1000);
+        }
+    };
+
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE, on_pause_execution);
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, on_stop_execution);
 
 
     auto multistep_calculation_promise = std::async(std::launch::async, [&]() {
         std::cout << "multistep_producer_for_execution start" << std::endl;
         auto ret = multistep_producer_for_execution(
             calculated_multisteps,
-            calculated_multisteps_m,
             program_parts,
             machine,
             program_to_steps,
@@ -409,36 +472,13 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
         for (std::size_t command_block_index = 0; (command_block_index < program_parts.size()) && (!cancel_execution); command_block_index++) {
             auto& ppart = program_parts[command_block_index];
 
-            std::atomic<bool> paused = false;
-            std::function<void(int, int)> on_pause_execution = [machine, &paused](int, int s) {
-                if (s == 1) {
-                    if (paused) {
-                        paused = false;
-                    } else {
-                        paused = true;
-                        machine.stepping->terminate(1000);
-                    }
-                }
-            };
-
-            auto on_stop_execution = [machine, &program_parts, &cancel_execution](int k, int s) {
-                if (s == 1) {
-                    std::cout << "on_stop_execution " << k << "  " << s << std::endl;
-                    cancel_execution = true;
-                    machine.stepping->terminate(1000);
-                }
-            };
-
-            machine.buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE, on_pause_execution);
-            machine.buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, on_stop_execution);
-
 
             if (ppart.size() != 0) {
                 if (ppart[0].count('M') == 0) {
                     switch ((int)(ppart[0].at('G'))) {
                     case 0:
                     case 1: {
-                        auto [m_commands, machine_state] = pop_multisteps(calculated_multisteps, calculated_multisteps_m, cancel_execution);
+                        auto [m_commands, machine_state] = calculated_multisteps.get(cancel_execution);
                         try {
                             execute_calculated_multistep(m_commands, machine, on_stop_execution, cancel_execution, paused, last_spindle_on_delay, spindles_status);
                         } catch (const raspigcd::hardware::execution_terminated& et) {
@@ -455,7 +495,7 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
                         }
                     } break;
                     case 28: {
-                        auto [m_commands, machine_state] = pop_multisteps(calculated_multisteps, calculated_multisteps_m, cancel_execution);
+                        auto [m_commands, machine_state] = calculated_multisteps.get(cancel_execution);
                         for (auto pelem : ppart) {
                             if ((int)(pelem.count('X'))) {
                                 home_position_find('X', program_to_steps, cfg, machine, cancel_execution, paused, last_spindle_on_delay, spindles_status);
@@ -469,7 +509,7 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
                         }
                     } break;
                     case 92: {
-                        auto [m_commands, machine_state] = pop_multisteps(calculated_multisteps, calculated_multisteps_m, cancel_execution);
+                        auto [m_commands, machine_state] = calculated_multisteps.get(cancel_execution);
                     } break;
                     }
                 } else {

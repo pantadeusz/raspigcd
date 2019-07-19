@@ -117,7 +117,8 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
         OUT_GPIO(sppwm.pin);
         _spindle_duties.push_back(0.0);
         spindle_pwm_power(i, 0.0);
-        _spindle_threads.push_back(std::thread([this, sppwm, i]() {
+        _spindle_threads.push_back(std::async(std::launch::async,[this, sppwm, i]() {
+            std::cout << "starting spindle " << i << " thread" << std::endl;
             double& _duty = _spindle_duties[i];
             /* {
                 sched_param sch_params;
@@ -141,6 +142,7 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
                 prevTime = prevTime + std::chrono::microseconds((int)(sppwm.cycle_time_seconds * 1000000.0));
                 std::this_thread::sleep_until(prevTime);
             }
+            std::cout << "finished spindle " << i << " thread" << std::endl;
         }));
     }
 
@@ -171,7 +173,7 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
     GPIO_PULL = 0;
     GPIO_PULLCLK0 = 0;
 
-    _btn_thread = std::thread([this]() {
+    _btn_thread = std::async(std::launch::async,[this]() {
         while (_threads_alive) {
             using namespace std::chrono_literals;
             for (unsigned k_i = 0; k_i < buttons.size(); k_i++) {
@@ -211,9 +213,12 @@ std::vector < int > raspberry_pi_3::keys_state() {
 raspberry_pi_3::~raspberry_pi_3()
 {
     _threads_alive = false;
-    _btn_thread.join();
+    //_btn_thread.join();
+    //for (auto& t : _spindle_threads)
+    //    t.join();
+    _btn_thread.get();
     for (auto& t : _spindle_threads)
-        t.join();
+        t.get();
     munmap(gpio.map, BLOCK_SIZE);
     close(gpio.mem_fd);
 }
