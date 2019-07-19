@@ -197,13 +197,15 @@ void home_position_find(char axis_id, converters::program_to_steps_f_t program_t
 
     auto [distance, max_feed, min_feed] = directions[axis_id];
     auto backward_distance = -1000.0 * std::abs(distance) / distance;
+    // forward fast move. We will break it on endstop hit
     raspigcd::hardware::multistep_commands_t forward_fast_commands = program_to_steps(
         {{{'G', 0.0}, {axis_id, distance * 0.05}, {'F', min_feed}},
             {{'G', 0.0}, {axis_id, distance}, {'F', max_feed}}},
         cfg, *(machine.motor_layout_.get()), {{'X', 0.0}, {'Y', 0.0}, {'Z', 0.0}, {'A', 0.0}, {'F', min_feed}}, [](const gcd::block_t) {});
+    // backward slow move. We will break it on endstop release
     raspigcd::hardware::multistep_commands_t backward_slow_commands = program_to_steps(
-        {{{'G', 0.0}, {axis_id, 0.0}, {'F', min_feed}},
-            {{'G', 0.0}, {axis_id, backward_distance}, {'F', min_feed}}},
+        {{{'G', 1.0}, {axis_id, 0.0}, {'F', min_feed}},
+            {{'G', 1.0}, {axis_id, backward_distance}, {'F', min_feed}}},
         cfg, *(machine.motor_layout_.get()), {{'X', 0.0}, {'Y', 0.0}, {'Z', 0.0}, {'A', 0.0}, {'F', min_feed}}, [](const gcd::block_t) {});
 
     std::atomic<bool> going_to_origin = true;
@@ -273,7 +275,7 @@ auto push_multisteps = [](std::list<std::pair<hardware::multistep_commands_t, bl
     }
 };
 auto pop_multisteps = [](std::list<std::pair<hardware::multistep_commands_t, block_t>>& calculated_multisteps, std::mutex& calculated_multisteps_m, std::atomic<bool>& cancel_execution) -> std::pair<hardware::multistep_commands_t, block_t> {
-    while (true) {
+    while (!cancel_execution) {
         calculated_multisteps_m.lock();
         if (calculated_multisteps.size() > 0) {
             calculated_multisteps_m.unlock();
@@ -282,11 +284,15 @@ auto pop_multisteps = [](std::list<std::pair<hardware::multistep_commands_t, blo
         calculated_multisteps_m.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(60));
     }
-    calculated_multisteps_m.lock();
-    auto [m_commands, machine_state] = calculated_multisteps.front();
-    calculated_multisteps.pop_front();
-    calculated_multisteps_m.unlock();
-    return {m_commands, machine_state};
+    if (calculated_multisteps.size() > 0) {
+        calculated_multisteps_m.lock();
+        auto [m_commands, machine_state] = calculated_multisteps.front();
+        calculated_multisteps.pop_front();
+        calculated_multisteps_m.unlock();
+        return {m_commands, machine_state};
+    } else {
+        throw std::invalid_argument("the calculated_multisteps queue is empty. Probably cancel_execution is set to true.");
+    }
 };
 
 /**
@@ -295,7 +301,7 @@ auto pop_multisteps = [](std::list<std::pair<hardware::multistep_commands_t, blo
  */
 auto multistep_producer_for_execution = [](std::list<std::pair<hardware::multistep_commands_t, block_t>>& calculated_multisteps,
                                             std::mutex& calculated_multisteps_m,
-                                            partitioned_program_t &program_parts,
+                                            partitioned_program_t& program_parts,
                                             execution_objects_t machine,
                                             converters::program_to_steps_f_t program_to_steps,
                                             std::atomic<bool>& cancel_execution,
@@ -378,14 +384,20 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
     std::atomic<bool> cancel_execution = false;
 
 
-    auto multistep_calculation_promise = std::async(std::launch::async, [&](){return multistep_producer_for_execution( 
-    calculated_multisteps,
-    calculated_multisteps_m,
-    program_parts,
-    machine,
-    program_to_steps,
-    cancel_execution,
-    cfg);});
+    auto multistep_calculation_promise = std::async(std::launch::async, [&]() {
+        std::cout << "multistep_producer_for_execution start" << std::endl;
+        auto ret = multistep_producer_for_execution(
+            calculated_multisteps,
+            calculated_multisteps_m,
+            program_parts,
+            machine,
+            program_to_steps,
+            cancel_execution,
+            cfg);
+        std::cout << "multistep_producer_for_execution finished with " << ret << " code" << std::endl;
+
+        return ret;
+    });
 
 
     {
@@ -498,7 +510,7 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
         }
         return multistep_calculation_promise.get();
     }
-    
+
     return multistep_calculation_promise.get();
 };
 
