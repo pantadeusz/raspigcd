@@ -292,6 +292,7 @@ void raspberry_pi_3::spindle_pwm_power(const int i, const double pwr0)
     if (pwr > 1.1) throw std::invalid_argument("spindle power should be less or equal 1");
     if (pwr > 1.0) pwr = 1.0;
     _spindle_duties[i] = (spindles.at(i).duty_max - spindles.at(i).duty_min) * pwr + spindles.at(i).duty_min;
+    std::cout << "sett duty to " << _spindle_duties[i] << std::endl;
 }
 
 } // namespace driver
