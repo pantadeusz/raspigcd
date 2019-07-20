@@ -78,7 +78,10 @@ void help_text(const std::vector<std::string>& args)
     std::cout << "\t\thelp screen" << std::endl;
     std::cout << std::endl;
     std::cout << "\t--raw" << std::endl;
-    std::cout << "\t\tTreat the file as raw - no additional processing. No limits check." << std::endl;
+    std::cout << "\t\tTreat the file as raw - no additional processing. No machine limits check (speed, acceleration, ...)." << std::endl;
+    std::cout << std::endl;
+    std::cout << "\t--configtest" << std::endl;
+    std::cout << "\t\tEnables the debug mode for testing configuration" << std::endl;
     std::cout << std::endl;
     std::cout << "AUTHOR" << std::endl;
     std::cout << "\tTadeusz Puźniakowski" << std::endl;
@@ -618,7 +621,33 @@ int main(int argc, char** argv)
             }
 
             execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg);
+        } else if (args.at(i) == "--configtest") {
+            using namespace raspigcd;
+            using namespace raspigcd::hardware;
+
+            auto machine = stepping_simple_timer_factory(cfg);
+
+            converters::program_to_steps_f_t program_to_steps;
+            program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
+
+            i++;
+
+
+            
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE    , [](int k, int v){std::cout << "PAUSE     " << k << "  value=" << v << std::endl;});
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, [](int k, int v){std::cout << "TERMINATE " << k << "  value=" << v << std::endl;});
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](int k, int v){std::cout << "ENDSTOP_X " << k << "  value=" << v << std::endl;});
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](int k, int v){std::cout << "ENDSTOP_Y " << k << "  value=" << v << std::endl;});
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](int k, int v){std::cout << "ENDSTOP_Z " << k << "  value=" << v << std::endl;});
+
+
+            std::cout << "type 'q' to quit" << std::endl;
+            std::string command;
+            do {
+                std::cin >> command;
+            } while (command != "q");
         }
+
     }
 
     return 0;
