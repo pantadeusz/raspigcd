@@ -60,6 +60,7 @@ public:
     bool dragging_view = false;
     bool scaling_view = false;
 
+    std::vector<int> previous_button_state;
 
     void set_steps(const steps_t& st)
     {
@@ -78,13 +79,25 @@ public:
             }
 
             if (current_position[0] < -10) { // 10mm left
-                buttons_drv->trigger_button_down(0);
+                if (previous_button_state[0] != 1) buttons_drv->trigger_button_down(0);
+                previous_button_state[0] = 1;
+            } else {
+                if (previous_button_state[0] != 0) buttons_drv->trigger_button_up(0);
+                previous_button_state[0] = 0;
             }
             if (current_position[1] > 10) { // 10mm forward (y positive)
-                buttons_drv->trigger_button_down(1);
+                if (previous_button_state[1] != 1) buttons_drv->trigger_button_down(1);
+                previous_button_state[1] = 1;
+            } else {
+                if (previous_button_state[1] != 0) buttons_drv->trigger_button_up(1);
+                previous_button_state[1] = 0;
             }
             if (current_position[2] > 90) { // 90mm up
-                buttons_drv->trigger_button_down(2);
+                if (previous_button_state[2] != 1) buttons_drv->trigger_button_down(2);
+                previous_button_state[2] = 1;
+            } else {
+                if (previous_button_state[2] != 0) buttons_drv->trigger_button_up(2);
+                previous_button_state[2] = 0;
             }
         }
 
@@ -118,7 +131,7 @@ public:
     video_sdl(configuration::global* cfg_, driver::low_buttons_fake* buttons_drv_, int width = 640, int height = 480)
     {
         if (SDL_Init(SDL_INIT_VIDEO) != 0) throw std::invalid_argument("SDL_Init");
-
+        previous_button_state.resize(100);
         buttons_drv = buttons_drv_;
 
         scale_view = 1000;

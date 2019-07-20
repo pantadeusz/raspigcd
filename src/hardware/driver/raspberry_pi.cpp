@@ -117,7 +117,8 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
         OUT_GPIO(sppwm.pin);
         _spindle_duties.push_back(0.0);
         spindle_pwm_power(i, 0.0);
-        _spindle_threads.push_back(std::thread([this, sppwm, i]() {
+        _spindle_threads.push_back(std::async(std::launch::async,[this, sppwm, i]() {
+            std::cout << "starting spindle " << i << " thread" << std::endl;
             double& _duty = _spindle_duties[i];
             /* {
                 sched_param sch_params;
@@ -141,6 +142,7 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
                 prevTime = prevTime + std::chrono::microseconds((int)(sppwm.cycle_time_seconds * 1000000.0));
                 std::this_thread::sleep_until(prevTime);
             }
+            std::cout << "finished spindle " << i << " thread" << std::endl;
         }));
     }
 
@@ -171,32 +173,38 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
     GPIO_PULL = 0;
     GPIO_PULLCLK0 = 0;
 
-    _btn_thread = std::thread([this]() {
+    _btn_thread = std::async(std::launch::async,[this]() {
+        static int anti_bounce_n = 100;
+        std::vector <int> button_anti_bounce(buttons.size());
         while (_threads_alive) {
             using namespace std::chrono_literals;
             for (unsigned k_i = 0; k_i < buttons.size(); k_i++) {
+                if (button_anti_bounce[k_i] > 0) button_anti_bounce[k_i]--;
+                else {
                 auto e = buttons[k_i];
                 int v = (unsigned char)(1 - ((GPIO_READ(e.pin)) >> (e.pin)));
                 v = (e.invert)?(1-v):v;
                 if (buttons_state[k_i] != v) {
                     auto f = buttons_callbacks.at(k_i);
+                    button_anti_bounce[k_i] = anti_bounce_n;
                     f(k_i,v);
                 }
                 buttons_state[k_i] = v;
+                }
             }
-            std::this_thread::sleep_for(10ms);
+            std::this_thread::sleep_for(200us);
         }
     });
 }
 
 
 void raspberry_pi_3::on_key(int btn, std::function<void(int,int)> callback_) {
-    std::cout << "set onkey callback" << std::endl;
+    //std::cout << "set onkey callback" << std::endl;
     buttons_callbacks[btn] = callback_;
-    std::cout << "                    ok" << std::endl;
+    //std::cout << "                    ok" << std::endl;
 }
 std::function<void(int,int)>  raspberry_pi_3::on_key(int btn) {
-    std::cout << "get onkey callback" << std::endl;
+    //std::cout << "get onkey callback" << std::endl;
     try {
     return buttons_callbacks.at(btn);
     } catch (...) {
@@ -211,9 +219,12 @@ std::vector < int > raspberry_pi_3::keys_state() {
 raspberry_pi_3::~raspberry_pi_3()
 {
     _threads_alive = false;
-    _btn_thread.join();
+    //_btn_thread.join();
+    //for (auto& t : _spindle_threads)
+    //    t.join();
+    _btn_thread.get();
     for (auto& t : _spindle_threads)
-        t.join();
+        t.get();
     munmap(gpio.map, BLOCK_SIZE);
     close(gpio.mem_fd);
 }
@@ -281,6 +292,7 @@ void raspberry_pi_3::spindle_pwm_power(const int i, const double pwr0)
     if (pwr > 1.1) throw std::invalid_argument("spindle power should be less or equal 1");
     if (pwr > 1.0) pwr = 1.0;
     _spindle_duties[i] = (spindles.at(i).duty_max - spindles.at(i).duty_min) * pwr + spindles.at(i).duty_min;
+    std::cout << "sett duty to " << _spindle_duties[i] << std::endl;
 }
 
 } // namespace driver

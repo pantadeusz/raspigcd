@@ -78,7 +78,10 @@ void help_text(const std::vector<std::string>& args)
     std::cout << "\t\thelp screen" << std::endl;
     std::cout << std::endl;
     std::cout << "\t--raw" << std::endl;
-    std::cout << "\t\tTreat the file as raw - no additional processing. No limits check." << std::endl;
+    std::cout << "\t\tTreat the file as raw - no additional processing. No machine limits check (speed, acceleration, ...)." << std::endl;
+    std::cout << std::endl;
+    std::cout << "\t--configtest" << std::endl;
+    std::cout << "\t\tEnables the debug mode for testing configuration" << std::endl;
     std::cout << std::endl;
     std::cout << "AUTHOR" << std::endl;
     std::cout << "\tTadeusz Puźniakowski" << std::endl;
@@ -124,6 +127,8 @@ partitioned_program_t preprocess_program_parts(partitioned_program_t program_par
                     machine_state = last_state_after_program_execution(ppart, machine_state);
                     break;
                 case 4:
+                case 28:
+                case 92:
                     prepared_program.insert(prepared_program.end(), ppart.begin(), ppart.end());
                     break;
                 }
@@ -153,6 +158,381 @@ partitioned_program_t preprocess_program_parts(partitioned_program_t program_par
     machine_state = {{'F', 0.5}};
     return program_parts;
 }
+
+
+void execute_calculated_multistep(raspigcd::hardware::multistep_commands_t m_commands, execution_objects_t machine, std::function<void(int, int)> on_stop_execution, std::atomic<bool>& cancel_execution, std::atomic<bool>& paused, long int last_spindle_on_delay, std::map<int, double>& spindles_status)
+{
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, on_stop_execution);
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, on_stop_execution);
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, on_stop_execution);
+
+    machine.stepping->exec(m_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
+        std::cout << "break at " << tick_n << " tick" << std::endl;
+        for (auto e : spindles_status) {
+            // stop spindles and lasers ASAP!
+            machine.spindles_drv->spindle_pwm_power(e.first, 0);
+        }
+        if (cancel_execution) return 0; // stop execution
+        while ((paused) && (!cancel_execution)) {
+            machine.timer_drv->wait_us(10000);
+        }
+        if (cancel_execution) return 0; // stop execution
+
+        for (auto e : spindles_status) {
+            machine.spindles_drv->spindle_pwm_power(e.first, e.second);
+            using namespace std::chrono_literals;
+            machine.timer_drv->wait_us(1000 * last_spindle_on_delay);
+        }
+        return 1; // continue execuiton
+    });
+}
+
+void home_position_find(char axis_id, converters::program_to_steps_f_t program_to_steps, configuration::global cfg, execution_objects_t machine, std::atomic<bool>& cancel_execution, std::atomic<bool>& paused, long int last_spindle_on_delay, std::map<int, double>& spindles_status)
+{
+    std::function<void(int, int)> on_stop_execution = [](int, int) {};
+
+    static double goto_default_speed = 50.0;
+
+    static std::map<char, std::tuple<double, double, double>> directions = {
+        {'X', {-2000,std::min(5.0,cfg.max_no_accel_velocity_mm_s[0]), std::min(goto_default_speed,cfg.max_velocity_mm_s[0])}},
+        {'Y', {4000, std::min(5.0,cfg.max_no_accel_velocity_mm_s[1]), std::min(goto_default_speed,cfg.max_velocity_mm_s[1])}},
+        {'Z', {300, std::min(5.0,cfg.max_no_accel_velocity_mm_s[2]) , std::min(goto_default_speed,cfg.max_velocity_mm_s[2])}}};
+
+
+    auto [distance, min_feed, max_feed] = directions[axis_id];
+    auto backward_distance = -3.0 * std::abs(distance) / distance;
+    // forward fast move. We will break it on endstop hit
+    raspigcd::hardware::multistep_commands_t forward_fast_commands = program_to_steps(
+        {{{'G', 1.0}, {axis_id, std::min(std::abs(distance),10.0)*std::abs(distance)/distance}, {'F', max_feed}},
+            {{'G', 1.0}, {axis_id, distance}, {'F', max_feed}}},
+        cfg, *(machine.motor_layout_.get()), {{'X', 0.0}, {'Y', 0.0}, {'Z', 0.0}, {'A', 0.0}, {'F', min_feed}}, [](const gcd::block_t) {});
+    // backward slow move. We will break it on endstop release
+    raspigcd::hardware::multistep_commands_t backward_slow_commands = program_to_steps(
+        {{{'G', 1.0}, {axis_id, backward_distance*0.5}, {'F', std::min(10.0,max_feed)}},
+            {{'G', 1.0}, {axis_id, backward_distance}, {'F', std::min(1.0,min_feed)}}},
+        cfg, *(machine.motor_layout_.get()), {{'X', 0.0}, {'Y', 0.0}, {'Z', 0.0}, {'A', 0.0}, {'F', min_feed}}, [](const gcd::block_t) {});
+
+    std::atomic<bool> going_to_origin = true;
+    auto probe_actions = [&going_to_origin, &machine](int k, int v) {
+        std::cout << "probe ... " << k << "  " << v << std::endl;
+        if (going_to_origin) {
+            if (v == 1) {
+                going_to_origin = false;
+                machine.stepping->terminate(20);
+                std::cout << "hit endstop to origin..." << std::endl;
+            }
+        } else {
+            if (v == 0) {
+                going_to_origin = true;
+                machine.stepping->terminate(100);
+                std::cout << "released endstop to origin..." << std::endl;
+            }
+        }
+    };
+
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, probe_actions);
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, probe_actions);
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, probe_actions);
+
+    try {
+        machine.stepping->exec(forward_fast_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
+            std::cout << "terminated endstop at " << tick_n << std::endl;
+            machine.timer_drv->wait_us(100000);
+            if (cancel_execution) {
+                for (auto e : spindles_status) {
+                    machine.spindles_drv->spindle_pwm_power(e.first, 0);
+                }
+            }
+            return 0; // stop execution
+        });
+    } catch (...) {
+    }
+    machine.timer_drv->wait_us(250000);
+    if (!going_to_origin) {
+try {
+        machine.stepping->exec(backward_slow_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
+            std::cout << "terminated endstop free at " << tick_n << std::endl;
+            machine.timer_drv->wait_us(100000);
+            if (cancel_execution) {
+                for (auto e : spindles_status) {
+                    machine.spindles_drv->spindle_pwm_power(e.first, 0);
+                }
+            }
+            return 0; // stop execution
+        });
+    } catch (...) {
+    }}
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](auto, auto) {});
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](auto, auto) {});
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](auto, auto) {});
+        machine.stepping->exec(backward_slow_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
+            if (cancel_execution) {
+                for (auto e : spindles_status) {
+                    machine.spindles_drv->spindle_pwm_power(e.first, 0);
+                }
+            }
+            return 0; // stop execution
+        });
+}
+
+template<class T>
+class fifo_c {
+    std::atomic_flag lock;
+    std::list<T> data;
+public:
+    fifo_c<T>():lock(ATOMIC_FLAG_INIT){};
+    T get(std::atomic<bool> &cancel_execution)
+    {
+        int counter = 0;
+        while (!cancel_execution) {
+            while (lock.test_and_set(std::memory_order_acquire));
+            if ((counter % 10) == 0) std::cout << "get: " << data.size() << std::endl;
+            if (data.size() > 0) {
+                auto ret = data.front();
+                data.pop_front();
+                lock.clear(std::memory_order_release);
+                return ret;
+            } else {
+                lock.clear(std::memory_order_release);
+                std::this_thread::sleep_for(std::chrono::milliseconds(191));
+            }
+        }
+        throw std::invalid_argument("fifo_c: the get from front broken.");
+    }
+
+    void put(std::atomic<bool> &cancel_execution, T value, int max_queue_size = 3) {
+        int counter = 0;
+        while (!cancel_execution) {
+            while (lock.test_and_set(std::memory_order_acquire));
+            if ((counter % 50) == 0) std::cout << "put: " << data.size() << std::endl;
+            if (data.size() < max_queue_size) {
+                data.push_back(value);
+                lock.clear(std::memory_order_release);
+                return;
+            } else {
+                lock.clear(std::memory_order_release);
+                std::this_thread::sleep_for(std::chrono::milliseconds(40));
+            }
+            counter ++;
+        }
+        throw std::invalid_argument("fifo_c: the put method broken.");
+    }
+};
+/**
+ * @brief produces series of multistep steps series filling the buffer that is a list of multistep commands. It can be canceled by setting cancel_execution to true.
+ * 
+ */
+auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_commands_t, block_t>>& calculated_multisteps,
+                                            partitioned_program_t& program_parts,
+                                            execution_objects_t machine,
+                                            converters::program_to_steps_f_t program_to_steps,
+                                            std::atomic<bool>& cancel_execution,
+                                            configuration::global cfg) -> int { // calculate multisteps
+    block_t machine_state = {{'F', 0.5}};
+
+    std::map<int, double> spindles_status;
+
+    for (std::size_t command_block_index = 0; (command_block_index < program_parts.size()) && (!cancel_execution); command_block_index++) {
+        auto& ppart = program_parts[command_block_index];
+        if (ppart.size() != 0) {
+            if (ppart[0].count('M') == 0) {
+                switch ((int)(ppart[0].at('G'))) {
+                case 0:
+                case 1: {
+                    auto machine_state_prev = machine_state;
+
+                    auto time0 = std::chrono::high_resolution_clock::now();
+                    block_t st = last_state_after_program_execution(ppart, machine_state);
+                    std::cout << "program_to_steps ... " << back_to_gcode({ppart}) << std::endl;
+                    auto m_commands = program_to_steps(ppart, cfg, *(machine.motor_layout_.get()),
+                        machine_state, [&machine_state](const gcd::block_t result) {
+                            machine_state = result;
+                        });
+
+                    if (!(block_to_distance_with_v_t(st) == block_to_distance_with_v_t(machine_state))) {
+                        std::cout << "states differs: " << block_to_distance_with_v_t(st) << "!=" << block_to_distance_with_v_t(machine_state) << std::endl;
+                        throw std::invalid_argument("states differ");
+                    }
+
+                    auto time1 = std::chrono::high_resolution_clock::now();
+                    double dt = std::chrono::duration<double, std::milli>(time1 - time0).count();
+                    std::cout << "calculations took " << dt << " milliseconds; have " << m_commands.size() << " steps to execute" << std::endl;
+                    calculated_multisteps.put(cancel_execution, {m_commands, machine_state});
+
+                    if (cancel_execution) return -100;
+                } break;
+                case 28: {
+                    if (ppart[0].count('X')) machine_state['X'] = 0.0;
+                    if (ppart[0].count('Y')) machine_state['Y'] = 0.0;
+                    if (ppart[0].count('Z')) machine_state['Z'] = 0.0;
+                    calculated_multisteps.put(cancel_execution,  {{}, machine_state});
+                    if (cancel_execution) return -100;
+                } break;
+                case 92: {
+                    for (auto pelem : ppart) {
+                        if (pelem.count('X')) machine_state['X'] = pelem['X'];
+                        if (pelem.count('Y')) machine_state['Y'] = pelem['Y'];
+                        if (pelem.count('Z')) machine_state['Z'] = pelem['Z'];
+                    }
+                    calculated_multisteps.put(cancel_execution, {{}, machine_state});
+                    if (cancel_execution) return -100;
+                } break;
+                }
+            } else {
+                for (auto& m : ppart) {
+                    switch ((int)(m.at('M'))) {
+                    case 17:
+                        break;
+                    case 18:
+                        break;
+                    case 3:
+                        spindles_status[0] = 1.0;
+                        break;
+                    case 5:
+                        spindles_status[0] = 0.0;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+};
+
+
+int execute_command_parts(partitioned_program_t program_parts, execution_objects_t machine, converters::program_to_steps_f_t program_to_steps, configuration::global cfg)
+{
+    fifo_c<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps;
+    std::atomic<bool> cancel_execution = false;
+    std::atomic<bool> paused = false;
+    std::function<void(int, int)> on_pause_execution = [machine, &paused](int, int s) {
+        if (s == 1) {
+            if (paused) {
+                paused = false;
+            } else {
+                paused = true;
+                machine.stepping->terminate(1000);
+            }
+        }
+    };
+
+    auto on_stop_execution = [machine, &program_parts, &cancel_execution](int k, int s) {
+        if (s == 1) {
+            std::cout << "on_stop_execution " << k << "  " << s << std::endl;
+            cancel_execution = true;
+            machine.stepping->terminate(1000);
+        }
+    };
+
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE, on_pause_execution);
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, on_stop_execution);
+
+
+    auto multistep_calculation_promise = std::async(std::launch::async, [&]() {
+        std::cout << "multistep_producer_for_execution start" << std::endl;
+        auto ret = multistep_producer_for_execution(
+            calculated_multisteps,
+            program_parts,
+            machine,
+            program_to_steps,
+            cancel_execution,
+            cfg);
+        std::cout << "multistep_producer_for_execution finished with " << ret << " code" << std::endl;
+
+        return ret;
+    });
+
+
+    {
+        block_t machine_state = {{'F', 0.5}};
+
+        std::map<int, double> spindles_status;
+        long int last_spindle_on_delay = 7000;
+
+        for (std::size_t command_block_index = 0; (command_block_index < program_parts.size()) && (!cancel_execution); command_block_index++) {
+            auto& ppart = program_parts[command_block_index];
+
+
+            if (ppart.size() != 0) {
+                if (ppart[0].count('M') == 0) {
+                    switch ((int)(ppart[0].at('G'))) {
+                    case 0:
+                    case 1: {
+                        auto [m_commands, machine_state] = calculated_multisteps.get(cancel_execution);
+                        try {
+                            execute_calculated_multistep(m_commands, machine, on_stop_execution, cancel_execution, paused, last_spindle_on_delay, spindles_status);
+                        } catch (const raspigcd::hardware::execution_terminated& et) {
+                            machine.spindles_drv->spindle_pwm_power(0, 0.0);
+                            machine.steppers_drv->enable_steppers({false});
+                            auto currstate = block_to_distance_with_v_t(machine_state);
+                            auto ddp = machine.motor_layout_->steps_to_cartesian(et.delta_steps);
+                            for (int i = 0; i < 3; i++)
+                                currstate[i] += ddp[i];
+                            currstate[3] = 0.001;
+                            std::cerr << "TERMINATED at " << currstate << std::endl;
+                            machine_state = distance_with_velocity_to_block(currstate);
+                            return -2;
+                        }
+                    } break;
+                    case 28: {
+                        auto [m_commands, machine_state] = calculated_multisteps.get(cancel_execution);
+                        for (auto pelem : ppart) {
+                            if ((int)(pelem.count('X'))) {
+                                home_position_find('X', program_to_steps, cfg, machine, cancel_execution, paused, last_spindle_on_delay, spindles_status);
+                            }
+                            if ((int)(pelem.count('Y'))) {
+                                home_position_find('Y', program_to_steps, cfg, machine, cancel_execution, paused, last_spindle_on_delay, spindles_status);
+                            }
+                            if ((int)(pelem.count('Z'))) {
+                                home_position_find('Z', program_to_steps, cfg, machine, cancel_execution, paused, last_spindle_on_delay, spindles_status);
+                            }
+                        }
+                    } break;
+                    case 92: {
+                        auto [m_commands, machine_state] = calculated_multisteps.get(cancel_execution);
+                    } break;
+                    }
+                } else {
+                    auto wait_for_component_to_start = [](auto m, int t = 3000) {
+                        if (m.count('P') == 1) {
+                            t = m.at('P');
+                        } else if (m.count('X') == 1) {
+                            t = 1000 * m.at('X');
+                        }
+                        if (t > 0)
+                            std::this_thread::sleep_for(std::chrono::milliseconds((int)t));
+                        return t;
+                    };
+                    for (auto& m : ppart) {
+                        switch ((int)(m.at('M'))) {
+                        case 17:
+                            machine.steppers_drv->enable_steppers({true});
+                            wait_for_component_to_start(m, 200);
+                            break;
+                        case 18:
+                            machine.steppers_drv->enable_steppers({false});
+                            wait_for_component_to_start(m, 200);
+                            break;
+                        case 3:
+                            spindles_status[0] = 1.0;
+                            machine.spindles_drv->spindle_pwm_power(0, spindles_status[0]);
+                            last_spindle_on_delay = wait_for_component_to_start(m, 3000);
+                            break;
+                        case 5:
+                            spindles_status[0] = 0.0;
+                            machine.spindles_drv->spindle_pwm_power(0, spindles_status[0]);
+                            wait_for_component_to_start(m, 3000);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return multistep_calculation_promise.get();
+    }
+
+    return multistep_calculation_promise.get();
+};
 
 
 int main(int argc, char** argv)
@@ -193,15 +573,18 @@ int main(int argc, char** argv)
                 std::istreambuf_iterator<char>());
 
             auto program = gcode_to_maps_of_arguments(gcode_text);
-            program = enrich_gcode_with_feedrate_commands(program, cfg);
-            program = remove_g92_from_gcode(program);
+            program = enrich_gcode_with_feedrate_commands(std::move(program), cfg);
+            //program = remove_g92_from_gcode(program);
             if (!raw_gcode) {
                 program = optimize_path_douglas_peucker(program, cfg.douglas_peucker_marigin);
             }
-            auto program_parts = group_gcode_commands(program);
+            auto program_parts = group_gcode_commands(std::move(program));
+
             block_t machine_state = {{'F', 0.5}};
             if (!raw_gcode) {
+                std::cerr << "preprocessing gcode" << std::endl;
                 program_parts = insert_additional_nodes_inbetween(program_parts, machine_state, cfg);
+                //std::cout << back_to_gcode(program_parts) << std::endl;
                 program_parts = preprocess_program_parts(program_parts, cfg);
             } // if prepare paths
 
@@ -213,151 +596,35 @@ int main(int argc, char** argv)
                 save_to_files_list.pop_front();
                 f << back_to_gcode(program_parts) << std::endl;
             }
-            machine_state = {{'F', 0.5}};
-            std::map<int, double> spindles_status;
-            long int last_spindle_on_delay = 7000;
-            std::atomic<bool> cancel_execution = false;
-                std::atomic<bool> paused = false;
-                std::function<void(int, int)> on_pause_execution;
-                auto on_resume_execution = [machine, &on_pause_execution, &paused](int k, int s) {
-                    if (s == 1) {
-                        std::cout << "######## resume" << std::endl;
-                        machine.buttons_drv->on_key(k, on_pause_execution);
-                        paused = false;
-                    }
-                };
-                on_pause_execution = [machine, &on_resume_execution, &paused](int k, int s) {
-                    if (s == 1) {
-                        machine.buttons_drv->on_key(k, on_resume_execution);
-                        paused = true;
-                        machine.stepping->terminate(1000);
-                    }
-                };
 
-                auto on_stop_execution = [machine, &program_parts, &cancel_execution](int, int s) {
-                    if (s == 1) {
-                        cancel_execution = true;
-                        machine.stepping->terminate(1000);
-                    }
-                };
+            execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg);
+        } else if (args.at(i) == "--configtest") {
+            using namespace raspigcd;
+            using namespace raspigcd::hardware;
+
+            auto machine = stepping_simple_timer_factory(cfg);
+
+            converters::program_to_steps_f_t program_to_steps;
+            program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
+
+            i++;
 
 
+            
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE    , [](int k, int v){std::cout << "PAUSE     " << k << "  value=" << v << std::endl;});
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, [](int k, int v){std::cout << "TERMINATE " << k << "  value=" << v << std::endl;});
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](int k, int v){std::cout << "ENDSTOP_X " << k << "  value=" << v << std::endl;});
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](int k, int v){std::cout << "ENDSTOP_Y " << k << "  value=" << v << std::endl;});
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](int k, int v){std::cout << "ENDSTOP_Z " << k << "  value=" << v << std::endl;});
 
-            for (std::size_t command_block_index = 0; (command_block_index < program_parts.size()) && (!cancel_execution); command_block_index++) {
-                auto& ppart = program_parts[command_block_index];
 
-
-                machine.buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE, on_pause_execution);
-                machine.buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, on_stop_execution);
-
-                if (ppart.size() != 0) {
-                    if (ppart[0].count('M') == 0) {
-                        switch ((int)(ppart[0].at('G'))) {
-                        case 0:
-                        case 1:
-                            auto machine_state_prev = machine_state;
-
-                            auto time0 = std::chrono::high_resolution_clock::now();
-                            block_t st = last_state_after_program_execution(ppart, machine_state);
-                            auto m_commands = program_to_steps(ppart, cfg, *(machine.motor_layout_.get()),
-                                machine_state, [&machine_state](const gcd::block_t result) {
-                                    machine_state = result;
-                                });
-                            if (!(block_to_distance_with_v_t(st) == block_to_distance_with_v_t(machine_state))) {
-                                std::cout << "states differs: " << block_to_distance_with_v_t(st) << "!=" << block_to_distance_with_v_t(machine_state) << std::endl;
-                                throw std::invalid_argument("states differ");
-                            }
-
-                            auto time1 = std::chrono::high_resolution_clock::now();
-                            double dt = std::chrono::duration<double, std::milli>(time1 - time0).count();
-                            std::cout << "calculations took " << dt << " milliseconds; have " << m_commands.size() << " steps to execute" << std::endl;
-                            try {
-                                machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, on_stop_execution);
-                                machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, on_stop_execution);
-                                machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, on_stop_execution);
-
-                                machine.stepping->exec(m_commands, [machine, &cancel_execution, &paused, machine_state_prev, last_spindle_on_delay, &spindles_status](auto steps_from_origin, auto tick_n) -> int {
-                                    std::cout << "break at " << tick_n << " tick" << std::endl;
-                                    for (auto e : spindles_status) {
-                                        // stop spindles and lasers ASAP!
-                                        machine.spindles_drv->spindle_pwm_power(e.first, 0);
-                                    }
-                                    if (cancel_execution) return 0; // stop execution
-                                    while ((paused) && (!cancel_execution)) {
-                                        machine.timer_drv->wait_us(10000);
-                                    }
-                                    if (cancel_execution) return 0; // stop execution
-
-                                    for (auto e : spindles_status) {
-                                        machine.spindles_drv->spindle_pwm_power(e.first, e.second);
-                                        using namespace std::chrono_literals;
-                                        std::cout << "wait for spindle..." << std::endl;
-                                        machine.timer_drv->wait_us(1000 * last_spindle_on_delay);
-                                        //                                        std::this_thread::sleep_for(std::chrono::milliseconds(last_spindle_on_delay));
-                                        std::cout << "wait for spindle... OK" << std::endl;
-                                    }
-                                    return 1; // continue execuiton
-                                });
-                            } catch (const raspigcd::hardware::execution_terminated& et) {
-                                machine.spindles_drv->spindle_pwm_power(0, 0.0);
-                                machine.steppers_drv->enable_steppers({false});
-                                auto currstate = block_to_distance_with_v_t(machine_state);
-                                auto ddp = machine.motor_layout_->steps_to_cartesian(et.delta_steps);
-                                for (int i = 0; i < 3; i++)
-                                    currstate[i] += ddp[i];
-                                currstate[3] = 0.001;
-                                std::cerr << "TERMINATED at " << currstate << std::endl;
-                                machine_state = distance_with_velocity_to_block(currstate);
-                                return -2;
-                            }
-                            break;
-                            //case 28:
-                            //
-                            //    break;
-                        }
-                    } else {
-                        auto wait_for_component_to_start = [](auto m, int t = 3000) {
-                            if (m.count('P') == 1) {
-                                t = m.at('P');
-                            } else if (m.count('X') == 1) {
-                                t = 1000 * m.at('X');
-                            }
-                            if (t > 0)
-                                std::this_thread::sleep_for(std::chrono::milliseconds((int)t));
-                            return t;
-                        };
-                        for (auto& m : ppart) {
-                            switch ((int)(m.at('M'))) {
-                            case 17:
-                                machine.steppers_drv->enable_steppers({true});
-                                wait_for_component_to_start(m, 200);
-                                break;
-                            case 18:
-                                machine.steppers_drv->enable_steppers({false});
-                                wait_for_component_to_start(m, 200);
-                                break;
-                            case 3:
-                                spindles_status[0] = 1.0;
-                                machine.spindles_drv->spindle_pwm_power(0, spindles_status[0]);
-                                last_spindle_on_delay = wait_for_component_to_start(m, 3000);
-                                break;
-                            case 5:
-                                spindles_status[0] = 0.0;
-                                machine.spindles_drv->spindle_pwm_power(0, spindles_status[0]);
-                                wait_for_component_to_start(m, 3000);
-                                break;
-                            }
-                        }
-                    }
-                }
-                std::string s = "";
-                for (auto e : machine_state) {
-                    s = s + ((s.size()) ? " " : "") + e.first + std::to_string(e.second);
-                }
-                std::cout << s << std::endl;
-            }
-            std::cout << "FINISHED" << std::endl;
+            std::cout << "type 'q' to quit" << std::endl;
+            std::string command;
+            do {
+                std::cin >> command;
+            } while (command != "q");
         }
+
     }
 
     return 0;

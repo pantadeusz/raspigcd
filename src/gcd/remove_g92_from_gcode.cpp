@@ -27,11 +27,10 @@
 namespace raspigcd {
 namespace gcd {
 
-program_t remove_g92_from_gcode(const program_t& input_program_)
+program_t remove_g92_from_gcode(const program_t& input_program_, block_t current_state)
 {
     program_t result;
     distance_t current_shift;
-    block_t current_state;
     for (auto e : input_program_) {
         for (auto &[k,v]:e) {
             v = ((int)(v * 1024.0));

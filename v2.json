@@ -1,19 +1,19 @@
 {
   "buttons": [
     {
-      "pin": 21,
+      "pin": 6,
       "pullup": true
     },
     {
-      "pin": 20,
+      "pin": 13,
       "pullup": true
     },
     {
-      "pin": 16,
+      "pin": 19,
       "pullup": true
     },
     {
-      "pin": 12,
+      "pin": 26,
       "pullup": true
     }
   ],
