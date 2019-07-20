@@ -174,19 +174,25 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
     GPIO_PULLCLK0 = 0;
 
     _btn_thread = std::async(std::launch::async,[this]() {
+        static int anti_bounce_n = 100;
+        std::vector <int> button_anti_bounce(buttons.size());
         while (_threads_alive) {
             using namespace std::chrono_literals;
             for (unsigned k_i = 0; k_i < buttons.size(); k_i++) {
+                if (button_anti_bounce[k_i] > 0) button_anti_bounce[k_i]--;
+                else {
                 auto e = buttons[k_i];
                 int v = (unsigned char)(1 - ((GPIO_READ(e.pin)) >> (e.pin)));
                 v = (e.invert)?(1-v):v;
                 if (buttons_state[k_i] != v) {
                     auto f = buttons_callbacks.at(k_i);
+                    button_anti_bounce[k_i] = anti_bounce_n;
                     f(k_i,v);
                 }
                 buttons_state[k_i] = v;
+                }
             }
-            std::this_thread::sleep_for(10ms);
+            std::this_thread::sleep_for(200us);
         }
     });
 }

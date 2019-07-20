@@ -2,19 +2,19 @@
   "machine_name": "frezia_hd_3profiles",
   "buttons": [
     {
-      "pin": 21,
+      "pin": 6,
       "pullup": true
     },
     {
-      "pin": 20,
+      "pin": 13,
       "pullup": true
     },
     {
-      "pin": 16,
+      "pin": 19,
       "pullup": true
     },
     {
-      "pin": 12,
+      "pin": 26,
       "pullup": true
     }
   ],
@@ -41,7 +41,7 @@
   "scale": [
     -1.0,
     1.0,
-    1.0,
+    -1.0,
     1.0
   ],
   "simulate_execution": false,
@@ -79,6 +79,9 @@
       "steps_per_mm": 100.0
     }
   ],
-  "tick_duration_us": 50
+  "tick_duration_us": 50,
+  "steps_generator_0":"program_to_steps",
+  "steps_generator":"linear_interpolation",
+  "steps_generator_2":"bezier_spline"
 }
 

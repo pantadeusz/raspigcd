@@ -191,40 +191,41 @@ void home_position_find(char axis_id, converters::program_to_steps_f_t program_t
 {
     std::function<void(int, int)> on_stop_execution = [](int, int) {};
 
+    static double goto_default_speed = 50.0;
 
     static std::map<char, std::tuple<double, double, double>> directions = {
-        {'X', {-2000, cfg.max_no_accel_velocity_mm_s[0], cfg.max_velocity_mm_s[0]}},
-        {'Y', {6000, cfg.max_no_accel_velocity_mm_s[1], cfg.max_velocity_mm_s[1]}},
-        {'Z', {200, cfg.max_no_accel_velocity_mm_s[2], cfg.max_velocity_mm_s[2]}}};
+        {'X', {-2000,std::min(5.0,cfg.max_no_accel_velocity_mm_s[0]), std::min(goto_default_speed,cfg.max_velocity_mm_s[0])}},
+        {'Y', {4000, std::min(5.0,cfg.max_no_accel_velocity_mm_s[1]), std::min(goto_default_speed,cfg.max_velocity_mm_s[1])}},
+        {'Z', {300, std::min(5.0,cfg.max_no_accel_velocity_mm_s[2]) , std::min(goto_default_speed,cfg.max_velocity_mm_s[2])}}};
 
 
-    auto [distance, max_feed, min_feed] = directions[axis_id];
-    auto backward_distance = -1000.0 * std::abs(distance) / distance;
+    auto [distance, min_feed, max_feed] = directions[axis_id];
+    auto backward_distance = -3.0 * std::abs(distance) / distance;
     // forward fast move. We will break it on endstop hit
     raspigcd::hardware::multistep_commands_t forward_fast_commands = program_to_steps(
-        {{{'G', 0.0}, {axis_id, distance * 0.05}, {'F', min_feed}},
-            {{'G', 0.0}, {axis_id, distance}, {'F', max_feed}}},
+        {{{'G', 1.0}, {axis_id, std::min(std::abs(distance),10.0)*std::abs(distance)/distance}, {'F', max_feed}},
+            {{'G', 1.0}, {axis_id, distance}, {'F', max_feed}}},
         cfg, *(machine.motor_layout_.get()), {{'X', 0.0}, {'Y', 0.0}, {'Z', 0.0}, {'A', 0.0}, {'F', min_feed}}, [](const gcd::block_t) {});
     // backward slow move. We will break it on endstop release
     raspigcd::hardware::multistep_commands_t backward_slow_commands = program_to_steps(
-        {{{'G', 1.0}, {axis_id, 0.0}, {'F', min_feed}},
-            {{'G', 1.0}, {axis_id, backward_distance}, {'F', min_feed}}},
+        {{{'G', 1.0}, {axis_id, backward_distance*0.5}, {'F', std::min(10.0,max_feed)}},
+            {{'G', 1.0}, {axis_id, backward_distance}, {'F', std::min(1.0,min_feed)}}},
         cfg, *(machine.motor_layout_.get()), {{'X', 0.0}, {'Y', 0.0}, {'Z', 0.0}, {'A', 0.0}, {'F', min_feed}}, [](const gcd::block_t) {});
 
     std::atomic<bool> going_to_origin = true;
     auto probe_actions = [&going_to_origin, &machine](int k, int v) {
+        std::cout << "probe ... " << k << "  " << v << std::endl;
         if (going_to_origin) {
             if (v == 1) {
                 going_to_origin = false;
-                machine.stepping->terminate(1500);
-                std::cout << "hit endstop..." << std::endl;
+                machine.stepping->terminate(20);
+                std::cout << "hit endstop to origin..." << std::endl;
             }
         } else {
-            std::cout << "released endstop ? ... " << k << "  " << v << std::endl;
             if (v == 0) {
                 going_to_origin = true;
-                machine.stepping->terminate(1000);
-                std::cout << "released endstop..." << std::endl;
+                machine.stepping->terminate(100);
+                std::cout << "released endstop to origin..." << std::endl;
             }
         }
     };
@@ -246,7 +247,9 @@ void home_position_find(char axis_id, converters::program_to_steps_f_t program_t
         });
     } catch (...) {
     }
-    try {
+    machine.timer_drv->wait_us(250000);
+    if (!going_to_origin) {
+try {
         machine.stepping->exec(backward_slow_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
             std::cout << "terminated endstop free at " << tick_n << std::endl;
             machine.timer_drv->wait_us(100000);
@@ -258,10 +261,18 @@ void home_position_find(char axis_id, converters::program_to_steps_f_t program_t
             return 0; // stop execution
         });
     } catch (...) {
-    }
+    }}
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](auto, auto) {});
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](auto, auto) {});
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](auto, auto) {});
+        machine.stepping->exec(backward_slow_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
+            if (cancel_execution) {
+                for (auto e : spindles_status) {
+                    machine.spindles_drv->spindle_pwm_power(e.first, 0);
+                }
+            }
+            return 0; // stop execution
+        });
 }
 
 template<class T>
@@ -307,40 +318,6 @@ public:
         throw std::invalid_argument("fifo_c: the put method broken.");
     }
 };
-/*
-auto push_multisteps = [](std::list<std::pair<hardware::multistep_commands_t, block_t>>& calculated_multisteps, std::mutex& calculated_multisteps_m, std::atomic<bool>& cancel_execution, std::pair<hardware::multistep_commands_t, block_t> multisteps_pair) {
-    while (!cancel_execution) {
-        calculated_multisteps_m.lock();
-        if (calculated_multisteps.size() < 2) {
-            calculated_multisteps.push_back(std::move(multisteps_pair));
-            calculated_multisteps_m.unlock();
-            break;
-        }
-        calculated_multisteps_m.unlock();
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    }
-};
-auto pop_multisteps = [](std::list<std::pair<hardware::multistep_commands_t, block_t>>& calculated_multisteps, std::mutex& calculated_multisteps_m, std::atomic<bool>& cancel_execution) -> std::pair<hardware::multistep_commands_t, block_t> {
-    while (!cancel_execution) {
-        calculated_multisteps_m.lock();
-        if (calculated_multisteps.size() > 0) {
-            calculated_multisteps_m.unlock();
-            break;
-        }
-        calculated_multisteps_m.unlock();
-        std::this_thread::sleep_for(std::chrono::milliseconds(60));
-    }
-    if (calculated_multisteps.size() > 0) {
-        calculated_multisteps_m.lock();
-        auto [m_commands, machine_state] = calculated_multisteps.front();
-        calculated_multisteps.pop_front();
-        calculated_multisteps_m.unlock();
-        return {m_commands, machine_state};
-    } else {
-        throw std::invalid_argument("the calculated_multisteps queue is empty. Probably cancel_execution is set to true.");
-    }
-};
-*/
 /**
  * @brief produces series of multistep steps series filling the buffer that is a list of multistep commands. It can be canceled by setting cancel_execution to true.
  * 
