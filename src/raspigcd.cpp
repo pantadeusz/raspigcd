@@ -544,20 +544,8 @@ int main(int argc, char** argv)
 
     bool raw_gcode = false; // should I push G commands directly, without adaptation to machine
     std::list<std::string> save_to_files_list;
-    for (unsigned i = 1; i < args.size(); i++) {
-        if ((args.at(i) == "-h") || (args.at(i) == "--help")) {
-            help_text(args);
-        } else if (args.at(i) == "-c") {
-            i++;
-            cfg.load(args.at(i));
-        } else if (args.at(i) == "-C") {
-            std::cout << cfg << std::endl;
-        } else if (args.at(i) == "-s") {
-            i++;
-            save_to_files_list.push_back(args.at(i));
-        } else if (args.at(i) == "--raw") {
-            raw_gcode = true;
-        } else if (args.at(i) == "-f") {
+
+    auto execute_gcode_file = [&](const auto filename) {
             using namespace raspigcd;
             using namespace raspigcd::hardware;
 
@@ -566,8 +554,7 @@ int main(int argc, char** argv)
             converters::program_to_steps_f_t program_to_steps;
             program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
 
-            i++;
-            std::ifstream gcd_file(args.at(i));
+            std::ifstream gcd_file(filename);
             if (!gcd_file.is_open()) throw std::invalid_argument("file should be opened");
             std::string gcode_text((std::istreambuf_iterator<char>(gcd_file)),
                 std::istreambuf_iterator<char>());
@@ -598,6 +585,24 @@ int main(int argc, char** argv)
             }
 
             execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg);
+    };
+
+    for (unsigned i = 1; i < args.size(); i++) {
+        if ((args.at(i) == "-h") || (args.at(i) == "--help")) {
+            help_text(args);
+        } else if (args.at(i) == "-c") {
+            i++;
+            cfg.load(args.at(i));
+        } else if (args.at(i) == "-C") {
+            std::cout << cfg << std::endl;
+        } else if (args.at(i) == "-s") {
+            i++;
+            save_to_files_list.push_back(args.at(i));
+        } else if (args.at(i) == "--raw") {
+            raw_gcode = true;
+        } else if (args.at(i) == "-f") {
+            i++;
+            execute_gcode_file(args.at(i));
         } else if (args.at(i) == "--configtest") {
             using namespace raspigcd;
             using namespace raspigcd::hardware;
