@@ -67,6 +67,13 @@ cmake -Bbuild -H. -DBUILD_TESTING=OFF
 sudo cmake --build build/ --target install
 ```
 
+## Connection
+
+The example connection schematic for stepstics. The configuration file is v3.json. Schematic is as follows:
+
+![v3.json connections](connection-v3-json.png)
+
+
 ## Coding style
 
 STL style with custom types named with _t as the postfix
