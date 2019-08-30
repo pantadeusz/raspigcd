@@ -58,8 +58,8 @@ namespace driver {
 struct bcm2835_peripheral {
     unsigned long addr_p;
     int mem_fd;
-    void* map;
-    volatile unsigned int* addr;
+    //void* map;
+    volatile uint32_t* addr;
 };
 
 class raspberry_pi_3 : public low_buttons, public low_steppers, public low_spindles_pwm// , public low_timers
