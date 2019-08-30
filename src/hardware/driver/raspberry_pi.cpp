@@ -44,8 +44,8 @@
 
 #define BLOCK_SIZE (4 * 1024)
 
-//#define INP_GPIO(g) *(gpio.addr + ((g) / 10)) &= ~(7 << (((g) % 10) * 3))
-//#define OUT_GPIO(g) *(gpio.addr + ((g) / 10)) |= (1 << (((g) % 10) * 3))
+#define INP_GPIO(g) *(gpio.addr + ((g) / 10)) &= ~(7 << (((g) % 10) * 3))
+#define OUT_GPIO(g) *(gpio.addr + ((g) / 10)) |= (1 << (((g) % 10) * 3))
 #define SET_GPIO_ALT(g, a)         \
     *(gpio.addr + (((g) / 10))) |= \
         (((a) <= 3 ? (a) + 4 : (a) == 4 ? 3 : 2) << (((g) % 10) * 3))
@@ -69,11 +69,10 @@ namespace driver {
 
 // 1 - output, 0 - input
 // inspired by https://github.com/RPi-Distro/raspi-gpio/blob/master/raspi-gpio.c#L302 by Ja
-void set_gpio_mode(struct bcm2835_peripheral &gpio_, int gpio, int fsel)
+void set_gpio_mode_x(struct bcm2835_peripheral &gpio_, int gpio, int fsel)
 {
     uint32_t reg = gpio / 10;
     uint32_t sel = gpio % 10;
-    uint32_t mask;
     volatile uint32_t *tmp = gpio_.addr+reg;
     *tmp = *tmp & (~(0x7<<(3*sel))); // with mask
     *tmp = *tmp | ((fsel&0x7)<<(3*sel));
@@ -83,6 +82,11 @@ void set_gpio_mode(struct bcm2835_peripheral &gpio_, int gpio, int fsel)
 
 raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 {
+    std::map<int,std::string> pins_taken;
+    auto pins_taken_check = [&pins_taken](int p, std::string desc){
+        if (pins_taken.count(p)) throw std::runtime_error(std::string("pin ") + std::to_string(p) + " already taken by " + pins_taken[p]);
+        pins_taken[p] = desc;
+    };
     // setup GPIO memory access
     gpio = {GPIO_BASE, 0, 0};
     // Open /dev/mem
@@ -112,9 +116,18 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 
     // enable steppers
     for (auto c : steppers) {
-        set_gpio_mode(gpio,c.step,1);
-        set_gpio_mode(gpio,c.dir,1);
-        set_gpio_mode(gpio,c.en,1);
+//        set_gpio_mode(gpio,c.step,1);
+//        set_gpio_mode(gpio,c.dir,1);
+//        set_gpio_mode(gpio,c.en,1);
+        pins_taken_check(c.step,"OUT step");
+        INP_GPIO(c.step);
+        OUT_GPIO(c.step);
+        pins_taken_check(c.dir,"OUT dir");
+        INP_GPIO(c.dir);
+        OUT_GPIO(c.dir);
+        //pins_taken_check(c.en,"OUT en");
+        INP_GPIO(c.en);
+        OUT_GPIO(c.en);
     }
     enable_steppers({false, false, false, false});
 
@@ -124,7 +137,10 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
     for (unsigned i = 0; i < spindles.size(); i++) {
         auto sppwm = spindles[i];
         std::cout << "setting pin " << sppwm.pin << " as spindle pwm output" << std::endl;
-        set_gpio_mode(gpio,sppwm.pin,1);
+//        set_gpio_mode(gpio,sppwm.pin,1);
+        pins_taken_check(sppwm.pin,"OUT pwm spindle");
+        INP_GPIO(sppwm.pin);
+        OUT_GPIO(sppwm.pin);
 
         _spindle_duties.push_back(0.0);
         spindle_pwm_power(i, 0.0);
@@ -165,7 +181,9 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 
     unsigned int pull_value = 0;
     for (auto& e : buttons) {
-        set_gpio_mode(gpio,e.pin,0);
+        pins_taken_check(e.pin,"IN button");
+        INP_GPIO(e.pin);
+//        set_gpio_mode(gpio,e.pin,0);
         if (e.pullup) pull_value |= 1 << e.pin;
         buttons_state.push_back(0);
         buttons_callbacks.push_back([](int,int){});
