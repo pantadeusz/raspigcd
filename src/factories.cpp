@@ -313,6 +313,9 @@ execution_objects_t stepping_simple_timer_factory(configuration::global cfg)
         steppers_drv = rp;
         spindles_drv = rp;
         buttons_drv = rp;
+    } catch (const std::runtime_error e) {
+        std::cerr << "verry bad runtime error. Please check configuration file" << std::endl;
+	throw e;
     } catch (...) {
         auto fk = std::make_shared<driver::inmem>();
         steppers_drv = fk;

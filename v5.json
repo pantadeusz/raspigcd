@@ -2,27 +2,22 @@
   "machine_name": "roberts_hardware",
   "buttons": [
     {
-      "pin": 21,
+      "pin": 0,
       "pullup": true,
       "invert": false
     },
     {
-      "pin": 20,
+      "pin": 5,
       "pullup": true,
       "invert": false
     },
     {
-      "pin": 16,
+      "pin": 6,
       "pullup": true,
       "invert": false
     },
     {
-      "pin": 12,
-      "pullup": true,
-      "invert": false
-    },
-    {
-      "pin": 26,
+      "pin": 13,
       "pullup": true,
       "invert": false
     }

@@ -67,28 +67,46 @@ namespace hardware {
 
 namespace driver {
 
+// 1 - output, 0 - input
+// inspired by https://github.com/RPi-Distro/raspi-gpio/blob/master/raspi-gpio.c#L302 by Ja
+void set_gpio_mode_x(struct bcm2835_peripheral &gpio_, int gpio, int fsel)
+{
+    uint32_t reg = gpio / 10;
+    uint32_t sel = gpio % 10;
+    volatile uint32_t *tmp = gpio_.addr+reg;
+    *tmp = *tmp & (~(0x7<<(3*sel))); // with mask
+    *tmp = *tmp | ((fsel&0x7)<<(3*sel));
+}
+
+
+
 raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 {
+    std::map<int,std::string> pins_taken;
+    auto pins_taken_check = [&pins_taken](int p, std::string desc){
+        if (pins_taken.count(p)) throw std::runtime_error(std::string("pin ") + std::to_string(p) + " already taken by " + pins_taken[p]);
+        pins_taken[p] = desc;
+    };
     // setup GPIO memory access
-    gpio = {GPIO_BASE, 0, 0, 0};
+    gpio = {GPIO_BASE, 0, 0};
     // Open /dev/mem
     if ((gpio.mem_fd = open("/dev/mem", O_RDWR | O_SYNC)) < 0) {
         throw std::runtime_error(
             "Failed to open /dev/mem, try checking permissions.\n");
     }
 
-    gpio.map = mmap(
+    auto map_ = mmap(
         NULL, BLOCK_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
         gpio.mem_fd, // File descriptor to physical memory virtual file '/dev/mem'
         gpio.addr_p  // Address in physical map that we want this memory block to
                      // expose
     );
 
-    if (gpio.map == MAP_FAILED) {
+    if (map_ == MAP_FAILED) {
         throw std::runtime_error("map_peripheral failed");
     }
 
-    gpio.addr = (volatile unsigned int*)gpio.map;
+    gpio.addr = (volatile uint32_t*)map_;
 
     // setup configuration variables
 
@@ -98,10 +116,16 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 
     // enable steppers
     for (auto c : steppers) {
+//        set_gpio_mode(gpio,c.step,1);
+//        set_gpio_mode(gpio,c.dir,1);
+//        set_gpio_mode(gpio,c.en,1);
+        pins_taken_check(c.step,"OUT step");
         INP_GPIO(c.step);
         OUT_GPIO(c.step);
+        pins_taken_check(c.dir,"OUT dir");
         INP_GPIO(c.dir);
         OUT_GPIO(c.dir);
+        //pins_taken_check(c.en,"OUT en");
         INP_GPIO(c.en);
         OUT_GPIO(c.en);
     }
@@ -113,8 +137,11 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
     for (unsigned i = 0; i < spindles.size(); i++) {
         auto sppwm = spindles[i];
         std::cout << "setting pin " << sppwm.pin << " as spindle pwm output" << std::endl;
+//        set_gpio_mode(gpio,sppwm.pin,1);
+        pins_taken_check(sppwm.pin,"OUT pwm spindle");
         INP_GPIO(sppwm.pin);
         OUT_GPIO(sppwm.pin);
+
         _spindle_duties.push_back(0.0);
         spindle_pwm_power(i, 0.0);
         _spindle_threads.push_back(std::async(std::launch::async,[this, sppwm, i]() {
@@ -154,7 +181,9 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 
     unsigned int pull_value = 0;
     for (auto& e : buttons) {
+        pins_taken_check(e.pin,"IN button");
         INP_GPIO(e.pin);
+//        set_gpio_mode(gpio,e.pin,0);
         if (e.pullup) pull_value |= 1 << e.pin;
         buttons_state.push_back(0);
         buttons_callbacks.push_back([](int,int){});
@@ -225,7 +254,7 @@ raspberry_pi_3::~raspberry_pi_3()
     _btn_thread.get();
     for (auto& t : _spindle_threads)
         t.get();
-    munmap(gpio.map, BLOCK_SIZE);
+    munmap((void*)gpio.addr, BLOCK_SIZE);
     close(gpio.mem_fd);
 }
 
