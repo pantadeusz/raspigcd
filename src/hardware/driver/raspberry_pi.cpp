@@ -159,12 +159,14 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
             while (_threads_alive) {
                 // 1
                 if (_duty >= 0.0) {
-                    GPIO_SET = 1 << sppwm.pin;
+                    if (sppwm.pin_negate)GPIO_CLR = 1 << sppwm.pin; 
+                    else GPIO_SET = 1 << sppwm.pin;
                     std::this_thread::sleep_until(prevTime + std::chrono::microseconds((int)(_duty * 1000000.0)));
                 }
                 if (_duty < sppwm.cycle_time_seconds) {
                     // 0
-                    GPIO_CLR = 1 << sppwm.pin;
+                    if (sppwm.pin_negate) GPIO_SET = 1 << sppwm.pin;
+                    else GPIO_CLR = 1 << sppwm.pin;
                 }
                 prevTime = prevTime + std::chrono::microseconds((int)(sppwm.cycle_time_seconds * 1000000.0));
                 std::this_thread::sleep_until(prevTime);
