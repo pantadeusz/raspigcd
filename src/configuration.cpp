@@ -88,7 +88,8 @@ global& global::load_defaults()
         {.pin = 18,
             .cycle_time_seconds = 0.1,
             .duty_min = 0.0,
-            .duty_max = 0.1}
+            .duty_max = 0.1,
+            .pin_negate = false}
         /*,        {
             pin : 18,
             cycle_time_seconds : 0.02,
@@ -126,7 +127,8 @@ void to_json(nlohmann::json& j, const spindle_pwm& p)
         {"pin", p.pin},
         {"cycle_time_seconds", p.cycle_time_seconds}, // 20ms
         {"duty_min", p.duty_min},
-        {"duty_max", p.duty_max}};
+        {"duty_max", p.duty_max},
+        {"pin_negate",p.pin_negate}};
 }
 
 void from_json(const nlohmann::json& j, spindle_pwm& p)
@@ -135,6 +137,7 @@ void from_json(const nlohmann::json& j, spindle_pwm& p)
     p.cycle_time_seconds = j.value("cycle_time_seconds", p.cycle_time_seconds);
     p.duty_min = j.value("duty_min", p.duty_min);
     p.duty_max = j.value("duty_max", p.duty_max);
+    p.pin_negate = j.value("pin_negate",p.pin_negate);
 }
 
 std::ostream& operator<<(std::ostream& os, spindle_pwm const& value)
