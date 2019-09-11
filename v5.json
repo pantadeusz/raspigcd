@@ -36,14 +36,14 @@
     3.0
   ],
   "max_velocity_mm_s": [
-    500.0,
-    500.0,
-    50.0,
+    300.0,
+    300.0,
+    7.0,
     20.0
   ],
   "motion_layout": "cartesian",
   "scale": [
-    -1.0,
+    1.0,
     1.0,
     -1.0,
     1.0
@@ -54,7 +54,8 @@
       "cycle_time_seconds": 0.1,
       "duty_max": 0.1,
       "duty_min": 0.0,
-      "pin": 18
+      "pin": 8,
+      "pin_negate":false
     }
   ],
   "steppers": [
