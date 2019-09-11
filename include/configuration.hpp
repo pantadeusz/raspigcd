@@ -60,6 +60,7 @@ public:
     double cycle_time_seconds;
     double duty_min;
     double duty_max;
+    bool pin_negate;
 };
 
 /**
