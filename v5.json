@@ -54,7 +54,8 @@
       "cycle_time_seconds": 0.1,
       "duty_max": 0.1,
       "duty_min": 0.0,
-      "pin": 18
+      "pin": 8,
+      "pin_negate":false
     }
   ],
   "steppers": [
