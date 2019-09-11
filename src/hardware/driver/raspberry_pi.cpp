@@ -84,7 +84,7 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 {
     std::map<int,std::string> pins_taken;
     auto pins_taken_check = [&pins_taken](int p, std::string desc){
-        if (pins_taken.count(p)) throw std::runtime_error(std::string("pin ") + std::to_string(p) + " already taken by " + pins_taken[p]);
+        if (pins_taken.count(p)) throw std::invalid_argument(std::string("pin ") + std::to_string(p) + " already taken by " + pins_taken[p]);
         pins_taken[p] = desc;
     };
     // setup GPIO memory access
