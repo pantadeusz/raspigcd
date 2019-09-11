@@ -194,7 +194,7 @@ void home_position_find(char axis_id, converters::program_to_steps_f_t program_t
     static double goto_default_speed = 50.0;
 
     static std::map<char, std::tuple<double, double, double>> directions = {
-        {'X', {-2000,std::min(5.0,cfg.max_no_accel_velocity_mm_s[0]), std::min(goto_default_speed,cfg.max_velocity_mm_s[0])}},
+        {'X', {2000,std::min(5.0,cfg.max_no_accel_velocity_mm_s[0]), std::min(goto_default_speed,cfg.max_velocity_mm_s[0])}},
         {'Y', {4000, std::min(5.0,cfg.max_no_accel_velocity_mm_s[1]), std::min(goto_default_speed,cfg.max_velocity_mm_s[1])}},
         {'Z', {300, std::min(5.0,cfg.max_no_accel_velocity_mm_s[2]) , std::min(goto_default_speed,cfg.max_velocity_mm_s[2])}}};
 
