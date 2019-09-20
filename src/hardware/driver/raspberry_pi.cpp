@@ -162,11 +162,7 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
                 }
             } */
             auto prevTime = std::chrono::steady_clock::now();
-            double prev_duty = 0.0;
             while (_threads_alive) {
-            	//if (prev_duty != _duty) 
-                std::cout << "spindle duty = " << _duty << std::endl;
-                //prev_duty = _duty;
                 // 1
                 if (_duty >= 0.0) {
                     if (sppwm.pin_negate)GPIO_CLR = 1 << sppwm.pin; 
