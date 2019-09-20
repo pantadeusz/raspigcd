@@ -89,12 +89,14 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
     };
     // setup GPIO memory access
     gpio = {GPIO_BASE, 0, 0};
+    std::cerr << "raspberry_pi_3::raspberry_pi_3: IO " << std::endl;
     // Open /dev/mem
     if ((gpio.mem_fd = open("/dev/mem", O_RDWR | O_SYNC)) < 0) {
         throw std::runtime_error(
             "Failed to open /dev/mem, try checking permissions.\n");
     }
 
+    std::cerr << "raspberry_pi_3::raspberry_pi_3: MMAP " << std::endl;
     auto map_ = mmap(
         NULL, BLOCK_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
         gpio.mem_fd, // File descriptor to physical memory virtual file '/dev/mem'
@@ -102,6 +104,7 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
                      // expose
     );
 
+    std::cerr << "raspberry_pi_3::raspberry_pi_3: GPIOADDR " << std::endl;
     if (map_ == MAP_FAILED) {
         throw std::runtime_error("map_peripheral failed");
     }
@@ -114,6 +117,7 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
     steppers = configuration.steppers;
     buttons = configuration.buttons;
 
+    std::cerr << "raspberry_pi_3::raspberry_pi_3: STEPPERS " << std::endl;
     // enable steppers
     for (auto c : steppers) {
 //        set_gpio_mode(gpio,c.step,1);
@@ -129,14 +133,16 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
         INP_GPIO(c.en);
         OUT_GPIO(c.en);
     }
+    std::cerr << "raspberry_pi_3::raspberry_pi_3: ENABLE_STEPPERS " << std::endl;
     enable_steppers({false, false, false, false});
 
     // enable spindles
 
+    std::cerr << "raspberry_pi_3::raspberry_pi_3: SPINDLES " << spindles.size()<< std::endl;
     _threads_alive = true;
     for (unsigned i = 0; i < spindles.size(); i++) {
         auto sppwm = spindles[i];
-        std::cout << "setting pin " << sppwm.pin << " as spindle pwm output" << std::endl;
+        std::cout << std::endl << "setting pin " << sppwm.pin << " as spindle pwm output" << std::endl;
 //        set_gpio_mode(gpio,sppwm.pin,1);
         pins_taken_check(sppwm.pin,"OUT pwm spindle");
         INP_GPIO(sppwm.pin);
@@ -305,7 +311,7 @@ void raspberry_pi_3::do_step(const std::array<single_step_command,4> &b)
 void raspberry_pi_3::enable_steppers(const std::vector<bool> en)
 {
     _enabled_steppers = en;
-    for (unsigned i = 0; i < en.size(); i++) {
+    for (unsigned i = 0; i < std::min(en.size(), steppers.size()); i++) {
         auto c = steppers.at(i);
         if (en.at(i)) {
             GPIO_CLR = 1 << c.en;

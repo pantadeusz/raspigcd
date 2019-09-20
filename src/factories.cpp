@@ -317,6 +317,7 @@ execution_objects_t stepping_simple_timer_factory(configuration::global cfg)
         std::cerr << "verry bad runtime error. Please check configuration file: " << e.what() << std::endl;
 	throw e;
     } catch (...) {
+        std::cerr << "stepping_simple_timer_factory: exception during raspberry_pi_3 object initialization. Fallback to GUI" << std::endl;
         auto fk = std::make_shared<driver::inmem>();
         steppers_drv = fk;
         spindles_drv = std::make_shared<raspigcd::hardware::driver::low_spindles_pwm_fake>(
