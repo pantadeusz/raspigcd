@@ -150,7 +150,7 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 
         _spindle_duties.push_back(0.0);
         spindle_pwm_power(i, 0.0);
-        _spindle_threads.push_back(std::async(std::launch::async,[this, sppwm, i]() {
+        _spindle_threads.push_back(std::thread([this, sppwm, i]() {
             std::cout << "starting spindle " << i << " thread" << std::endl;
             double& _duty = _spindle_duties[i];
             /* {
@@ -162,7 +162,11 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
                 }
             } */
             auto prevTime = std::chrono::steady_clock::now();
+            double prev_duty = 0.0;
             while (_threads_alive) {
+            	//if (prev_duty != _duty) 
+                std::cout << "spindle duty = " << _duty << std::endl;
+                //prev_duty = _duty;
                 // 1
                 if (_duty >= 0.0) {
                     if (sppwm.pin_negate)GPIO_CLR = 1 << sppwm.pin; 
@@ -255,34 +259,37 @@ std::vector < int > raspberry_pi_3::keys_state() {
 
 raspberry_pi_3::~raspberry_pi_3()
 {
+    std::cerr << "raspberry_pi_3::~raspberry_pi_3()..." << std::endl;
     _threads_alive = false;
     //_btn_thread.join();
     //for (auto& t : _spindle_threads)
     //    t.join();
     _btn_thread.get();
     for (auto& t : _spindle_threads)
-        t.get();
+        t.join();//get();
     munmap((void*)gpio.addr, BLOCK_SIZE);
     close(gpio.mem_fd);
+    std::cerr << "raspberry_pi_3::~raspberry_pi_3()..." << std::endl;
 }
 
 
 void raspberry_pi_3::do_step(const std::array<single_step_command,4> &b)
 {
+
     unsigned int step_clear = (1 << steppers[0].step) | (1 << steppers[1].step) |
-                              (1 << steppers[2].step) | (1 << steppers[3].step);
+                              (1 << steppers[2].step); // | (1 << steppers[3].step);
     // step direction
     unsigned int dir_set =
         (b[0].dir << steppers[0].dir) | (b[1].dir << steppers[1].dir) |
-        (b[2].dir << steppers[2].dir) | (b[3].dir << steppers[3].dir);
+        (b[2].dir << steppers[2].dir);// | (b[3].dir << steppers[3].dir);
     unsigned int dir_clear = ((1 - b[0].dir) << steppers[0].dir) |
                              ((1 - b[1].dir) << steppers[1].dir) |
-                             ((1 - b[2].dir) << steppers[2].dir) |
-                             ((1 - b[3].dir) << steppers[3].dir);
+                             ((1 - b[2].dir) << steppers[2].dir);// |
+//                             ((1 - b[3].dir) << steppers[3].dir);
     // shoud do step?
     unsigned int step_set =
         (b[0].step << steppers[0].step) | (b[1].step << steppers[1].step) |
-        (b[2].step << steppers[2].step) | (b[3].step << steppers[3].step);
+        (b[2].step << steppers[2].step);// | (b[3].step << steppers[3].step);
 
     // first set directions
     GPIO_SET = dir_set;
