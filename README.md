@@ -6,7 +6,9 @@
 
 The G-CODE interpreter for Raspberry Pi 3 (it works on older versions, but untested)
 
-Recent experiments: [on YouTube](https://www.youtube.com/watch?time_continue=1&v=AFNFixXfOOk)
+Recent experiments: 
+ * [bigger machine](https://www.youtube.com/watch?v=FHCfcKqkbCY)
+ * [smaller machine](https://www.youtube.com/watch?v=AFNFixXfOOk)
 
 ## Short description
 
