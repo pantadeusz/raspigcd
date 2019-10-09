@@ -284,16 +284,19 @@ public:
     T get(std::atomic<bool> &cancel_execution)
     {
         int counter = 0;
+        //std::cout << "get_from_fifo..." << std::endl;
         while (!cancel_execution) {
             while (lock.test_and_set(std::memory_order_acquire));
-            if ((counter % 10) == 0) std::cout << "get: " << data.size() << std::endl;
+            ///if ((counter % 10) == 0) std::cout << "get: " << data.size() << std::endl;
             if (data.size() > 0) {
                 auto ret = data.front();
                 data.pop_front();
                 lock.clear(std::memory_order_release);
+                //std::cout << "get_from_fifo... ok 1" << std::endl;
                 return ret;
             } else {
                 lock.clear(std::memory_order_release);
+                //std::cout << "get_from_fifo... ok 2" << std::endl;
                 std::this_thread::sleep_for(std::chrono::milliseconds(191));
             }
         }
@@ -302,19 +305,23 @@ public:
 
     void put(std::atomic<bool> &cancel_execution, T value, int max_queue_size = 3) {
         int counter = 0;
+        //std::cout << "put_to_fifo..." << std::endl;
         while (!cancel_execution) {
             while (lock.test_and_set(std::memory_order_acquire));
-            if ((counter % 50) == 0) std::cout << "put: " << data.size() << std::endl;
+            ///if ((counter % 50) == 0) std::cout << "put: " << data.size() << std::endl;
             if (data.size() < max_queue_size) {
                 data.push_back(value);
                 lock.clear(std::memory_order_release);
+                //std::cout << "put_to_fifo... ok 1" << std::endl;
                 return;
             } else {
                 lock.clear(std::memory_order_release);
                 std::this_thread::sleep_for(std::chrono::milliseconds(40));
+                //std::cout << "put_to_fifo... ok 2" << std::endl;
             }
             counter ++;
         }
+        
         throw std::invalid_argument("fifo_c: the put method broken.");
     }
 };
@@ -343,7 +350,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
 
                     auto time0 = std::chrono::high_resolution_clock::now();
                     block_t st = last_state_after_program_execution(ppart, machine_state);
-                    std::cout << "program_to_steps ... " << back_to_gcode({ppart}) << std::endl;
+                    //// std::cout << "program_to_steps ... " << back_to_gcode({ppart}) << std::endl;
                     auto m_commands = program_to_steps(ppart, cfg, *(machine.motor_layout_.get()),
                         machine_state, [&machine_state](const gcd::block_t result) {
                             machine_state = result;
@@ -356,7 +363,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
 
                     auto time1 = std::chrono::high_resolution_clock::now();
                     double dt = std::chrono::duration<double, std::milli>(time1 - time0).count();
-                    std::cout << "calculations took " << dt << " milliseconds; have " << m_commands.size() << " steps to execute" << std::endl;
+                    std::cout << "calculations of " << ppart.size() << " commands took " << dt << " milliseconds; have " << m_commands.size() << " steps to execute" << std::endl;
                     calculated_multisteps.put(cancel_execution, {m_commands, machine_state});
 
                     if (cancel_execution) return -100;
@@ -560,7 +567,9 @@ int main(int argc, char** argv)
                 std::istreambuf_iterator<char>());
 
             auto program = gcode_to_maps_of_arguments(gcode_text);
+//            std::cout << "PRORGRAM RAW: \n" << back_to_gcode({program}) << std::endl;
             program = enrich_gcode_with_feedrate_commands(std::move(program), cfg);
+//            std::cout << back_to_gcode({program}) << std::endl;
             //program = remove_g92_from_gcode(program);
             if (!raw_gcode) {
                 program = optimize_path_douglas_peucker(program, cfg.douglas_peucker_marigin);
