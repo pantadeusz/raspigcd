@@ -112,12 +112,19 @@ program_t enrich_gcode_with_feedrate_commands(const program_t& program_, const c
 {
     auto program = program_;
     double previous_feedrate_g1 = 0.1;
-    for (auto& p : program) {
-        if (p.count('G')) {
-            if ((p['G'] == 0) && (p.count('F')==0)) {
-                p['F'] = *std::max_element(
+
+    double g0_feedrate = *std::max_element(
                     std::begin(cfg.max_velocity_mm_s),
                     std::end(cfg.max_velocity_mm_s));
+
+    for (auto& p : program) {
+        if (p.count('G')) {
+            if (p['G'] == 0) { 
+                if (p.count('F')==0) {
+                    p['F'] = g0_feedrate;
+                } else {
+                    g0_feedrate = p['F'];
+                }
             } else if (p['G'] == 1) {
                 if (p.count('F')) {
                     previous_feedrate_g1 = p['F'];

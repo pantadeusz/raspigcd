@@ -93,7 +93,7 @@ void help_text(const std::vector<std::string>& args)
     std::cout << "\t" << std::endl;
     std::cout << "\tRaspberry Pi G-CODE interpreter" << std::endl;
     std::cout << "\t" << std::endl;
-    std::cout << "\tCopyright (C) 2019  Tadeusz Puźniakowski puzniakowski.pl" << std::endl;
+    std::cout << "\tCopyright (C) 2019 Tadeusz Puźniakowski puzniakowski.pl" << std::endl;
     std::cout << "\t" << std::endl;
     std::cout << "\tThis program is free software: you can redistribute it and/or modify" << std::endl;
     std::cout << "\tit under the terms of the GNU Affero General Public License as published by" << std::endl;
@@ -194,22 +194,22 @@ void home_position_find(char axis_id, converters::program_to_steps_f_t program_t
     static double goto_default_speed = 50.0;
 
     static std::map<char, std::tuple<double, double, double>> directions = {
-        {'X', {2000,std::min(5.0,cfg.max_no_accel_velocity_mm_s[0]), std::min(goto_default_speed,cfg.max_velocity_mm_s[0])}},
-        {'Y', {4000, std::min(5.0,cfg.max_no_accel_velocity_mm_s[1]), std::min(goto_default_speed,cfg.max_velocity_mm_s[1])}},
-        {'Z', {300, std::min(5.0,cfg.max_no_accel_velocity_mm_s[2]) , std::min(goto_default_speed,cfg.max_velocity_mm_s[2])}}};
+        {'X', {2000, std::min(5.0, cfg.max_no_accel_velocity_mm_s[0]), std::min(goto_default_speed, cfg.max_velocity_mm_s[0])}},
+        {'Y', {4000, std::min(5.0, cfg.max_no_accel_velocity_mm_s[1]), std::min(goto_default_speed, cfg.max_velocity_mm_s[1])}},
+        {'Z', {300, std::min(5.0, cfg.max_no_accel_velocity_mm_s[2]), std::min(goto_default_speed, cfg.max_velocity_mm_s[2])}}};
 
 
     auto [distance, min_feed, max_feed] = directions[axis_id];
     auto backward_distance = -3.0 * std::abs(distance) / distance;
     // forward fast move. We will break it on endstop hit
     raspigcd::hardware::multistep_commands_t forward_fast_commands = program_to_steps(
-        {{{'G', 1.0}, {axis_id, std::min(std::abs(distance),10.0)*std::abs(distance)/distance}, {'F', max_feed}},
+        {{{'G', 1.0}, {axis_id, std::min(std::abs(distance), 10.0) * std::abs(distance) / distance}, {'F', max_feed}},
             {{'G', 1.0}, {axis_id, distance}, {'F', max_feed}}},
         cfg, *(machine.motor_layout_.get()), {{'X', 0.0}, {'Y', 0.0}, {'Z', 0.0}, {'A', 0.0}, {'F', min_feed}}, [](const gcd::block_t) {});
     // backward slow move. We will break it on endstop release
     raspigcd::hardware::multistep_commands_t backward_slow_commands = program_to_steps(
-        {{{'G', 1.0}, {axis_id, backward_distance*0.5}, {'F', std::min(10.0,max_feed)}},
-            {{'G', 1.0}, {axis_id, backward_distance}, {'F', std::min(1.0,min_feed)}}},
+        {{{'G', 1.0}, {axis_id, backward_distance * 0.5}, {'F', std::min(10.0, max_feed)}},
+            {{'G', 1.0}, {axis_id, backward_distance}, {'F', std::min(1.0, min_feed)}}},
         cfg, *(machine.motor_layout_.get()), {{'X', 0.0}, {'Y', 0.0}, {'Z', 0.0}, {'A', 0.0}, {'F', min_feed}}, [](const gcd::block_t) {});
 
     std::atomic<bool> going_to_origin = true;
@@ -249,72 +249,85 @@ void home_position_find(char axis_id, converters::program_to_steps_f_t program_t
     }
     machine.timer_drv->wait_us(250000);
     if (!going_to_origin) {
-try {
-        machine.stepping->exec(backward_slow_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
-            std::cout << "terminated endstop free at " << tick_n << std::endl;
-            machine.timer_drv->wait_us(100000);
-            if (cancel_execution) {
-                for (auto e : spindles_status) {
-                    machine.spindles_drv->spindle_pwm_power(e.first, 0);
+        try {
+            machine.stepping->exec(backward_slow_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
+                std::cout << "terminated endstop free at " << tick_n << std::endl;
+                machine.timer_drv->wait_us(100000);
+                if (cancel_execution) {
+                    for (auto e : spindles_status) {
+                        machine.spindles_drv->spindle_pwm_power(e.first, 0);
+                    }
                 }
-            }
-            return 0; // stop execution
-        });
-    } catch (...) {
-    }}
+                return 0; // stop execution
+            });
+        } catch (...) {
+        }
+    }
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](auto, auto) {});
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](auto, auto) {});
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](auto, auto) {});
-        machine.stepping->exec(backward_slow_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
-            if (cancel_execution) {
-                for (auto e : spindles_status) {
-                    machine.spindles_drv->spindle_pwm_power(e.first, 0);
-                }
+    machine.stepping->exec(backward_slow_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
+        if (cancel_execution) {
+            for (auto e : spindles_status) {
+                machine.spindles_drv->spindle_pwm_power(e.first, 0);
             }
-            return 0; // stop execution
-        });
+        }
+        return 0; // stop execution
+    });
 }
 
-template<class T>
-class fifo_c {
+template <class T>
+class fifo_c
+{
     std::atomic_flag lock;
     std::list<T> data;
+
 public:
-    fifo_c<T>():lock(ATOMIC_FLAG_INIT){};
-    T get(std::atomic<bool> &cancel_execution)
+    fifo_c<T>() : lock(ATOMIC_FLAG_INIT){};
+    T get(std::atomic<bool>& cancel_execution)
     {
         int counter = 0;
+        //std::cout << "get_from_fifo..." << std::endl;
         while (!cancel_execution) {
-            while (lock.test_and_set(std::memory_order_acquire));
-            if ((counter % 10) == 0) std::cout << "get: " << data.size() << std::endl;
+            while (lock.test_and_set(std::memory_order_acquire))
+                ;
+            ///if ((counter % 10) == 0) std::cout << "get: " << data.size() << std::endl;
             if (data.size() > 0) {
                 auto ret = data.front();
                 data.pop_front();
                 lock.clear(std::memory_order_release);
+                //std::cout << "get_from_fifo... ok 1" << std::endl;
                 return ret;
             } else {
                 lock.clear(std::memory_order_release);
+                //std::cout << "get_from_fifo... ok 2" << std::endl;
                 std::this_thread::sleep_for(std::chrono::milliseconds(191));
             }
         }
         throw std::invalid_argument("fifo_c: the get from front broken.");
     }
 
-    void put(std::atomic<bool> &cancel_execution, T value, int max_queue_size = 3) {
+    void put(std::atomic<bool>& cancel_execution, T value, int max_queue_size = 3)
+    {
         int counter = 0;
+        //std::cout << "put_to_fifo..." << std::endl;
         while (!cancel_execution) {
-            while (lock.test_and_set(std::memory_order_acquire));
-            if ((counter % 50) == 0) std::cout << "put: " << data.size() << std::endl;
+            while (lock.test_and_set(std::memory_order_acquire))
+                ;
+            ///if ((counter % 50) == 0) std::cout << "put: " << data.size() << std::endl;
             if (data.size() < max_queue_size) {
                 data.push_back(value);
                 lock.clear(std::memory_order_release);
+                //std::cout << "put_to_fifo... ok 1" << std::endl;
                 return;
             } else {
                 lock.clear(std::memory_order_release);
                 std::this_thread::sleep_for(std::chrono::milliseconds(40));
+                //std::cout << "put_to_fifo... ok 2" << std::endl;
             }
-            counter ++;
+            counter++;
         }
+
         throw std::invalid_argument("fifo_c: the put method broken.");
     }
 };
@@ -343,7 +356,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
 
                     auto time0 = std::chrono::high_resolution_clock::now();
                     block_t st = last_state_after_program_execution(ppart, machine_state);
-                    std::cout << "program_to_steps ... " << back_to_gcode({ppart}) << std::endl;
+                    //// std::cout << "program_to_steps ... " << back_to_gcode({ppart}) << std::endl;
                     auto m_commands = program_to_steps(ppart, cfg, *(machine.motor_layout_.get()),
                         machine_state, [&machine_state](const gcd::block_t result) {
                             machine_state = result;
@@ -356,7 +369,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
 
                     auto time1 = std::chrono::high_resolution_clock::now();
                     double dt = std::chrono::duration<double, std::milli>(time1 - time0).count();
-                    std::cout << "calculations took " << dt << " milliseconds; have " << m_commands.size() << " steps to execute" << std::endl;
+                    std::cout << "calculations of " << ppart.size() << " commands took " << dt << " milliseconds; have " << m_commands.size() << " steps to execute" << std::endl;
                     calculated_multisteps.put(cancel_execution, {m_commands, machine_state});
 
                     if (cancel_execution) return -100;
@@ -365,7 +378,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
                     if (ppart[0].count('X')) machine_state['X'] = 0.0;
                     if (ppart[0].count('Y')) machine_state['Y'] = 0.0;
                     if (ppart[0].count('Z')) machine_state['Z'] = 0.0;
-                    calculated_multisteps.put(cancel_execution,  {{}, machine_state});
+                    calculated_multisteps.put(cancel_execution, {{}, machine_state});
                     if (cancel_execution) return -100;
                 } break;
                 case 92: {
@@ -546,45 +559,47 @@ int main(int argc, char** argv)
     std::list<std::string> save_to_files_list;
 
     auto execute_gcode_file = [&](const auto filename) {
-            using namespace raspigcd;
-            using namespace raspigcd::hardware;
+        using namespace raspigcd;
+        using namespace raspigcd::hardware;
 
-            auto machine = stepping_simple_timer_factory(cfg);
+        auto machine = stepping_simple_timer_factory(cfg);
 
-            converters::program_to_steps_f_t program_to_steps;
-            program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
+        converters::program_to_steps_f_t program_to_steps;
+        program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
 
-            std::ifstream gcd_file(filename);
-            if (!gcd_file.is_open()) throw std::invalid_argument("file should be opened");
-            std::string gcode_text((std::istreambuf_iterator<char>(gcd_file)),
-                std::istreambuf_iterator<char>());
+        std::ifstream gcd_file(filename);
+        if (!gcd_file.is_open()) throw std::invalid_argument("file should be opened");
+        std::string gcode_text((std::istreambuf_iterator<char>(gcd_file)),
+            std::istreambuf_iterator<char>());
 
-            auto program = gcode_to_maps_of_arguments(gcode_text);
-            program = enrich_gcode_with_feedrate_commands(std::move(program), cfg);
-            //program = remove_g92_from_gcode(program);
-            if (!raw_gcode) {
-                program = optimize_path_douglas_peucker(program, cfg.douglas_peucker_marigin);
-            }
-            auto program_parts = group_gcode_commands(std::move(program));
+        auto program = gcode_to_maps_of_arguments(gcode_text);
+        //            std::cout << "PRORGRAM RAW: \n" << back_to_gcode({program}) << std::endl;
+        program = enrich_gcode_with_feedrate_commands(std::move(program), cfg);
+        //            std::cout << back_to_gcode({program}) << std::endl;
+        //program = remove_g92_from_gcode(program);
+        if (!raw_gcode) {
+            program = optimize_path_douglas_peucker(program, cfg.douglas_peucker_marigin);
+        }
+        auto program_parts = group_gcode_commands(std::move(program));
 
-            block_t machine_state = {{'F', 0.5}};
-            if (!raw_gcode) {
-                std::cerr << "preprocessing gcode" << std::endl;
-                program_parts = insert_additional_nodes_inbetween(program_parts, machine_state, cfg);
-                //std::cout << back_to_gcode(program_parts) << std::endl;
-                program_parts = preprocess_program_parts(program_parts, cfg);
-            } // if prepare paths
+        block_t machine_state = {{'F', 0.5}};
+        if (!raw_gcode) {
+            std::cerr << "preprocessing gcode" << std::endl;
+            program_parts = insert_additional_nodes_inbetween(program_parts, machine_state, cfg);
+            //std::cout << back_to_gcode(program_parts) << std::endl;
+            program_parts = preprocess_program_parts(program_parts, cfg);
+        } // if prepare paths
 
-            std::cout << "STARTING...." << std::endl;
+        std::cout << "STARTING...." << std::endl;
 
-            if (save_to_files_list.size() > 0) {
-                std::cout << "SAVING PREPROCESSED FILE TO: " << save_to_files_list.front() << std::endl;
-                std::fstream f(save_to_files_list.front(), std::fstream::out);
-                save_to_files_list.pop_front();
-                f << back_to_gcode(program_parts) << std::endl;
-            }
+        if (save_to_files_list.size() > 0) {
+            std::cout << "SAVING PREPROCESSED FILE TO: " << save_to_files_list.front() << std::endl;
+            std::fstream f(save_to_files_list.front(), std::fstream::out);
+            save_to_files_list.pop_front();
+            f << back_to_gcode(program_parts) << std::endl;
+        }
 
-            execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg);
+        execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg);
     };
 
     for (unsigned i = 1; i < args.size(); i++) {
@@ -614,13 +629,11 @@ int main(int argc, char** argv)
 
             i++;
 
-
-            
-            machine.buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE    , [](int k, int v){std::cout << "PAUSE     " << k << "  value=" << v << std::endl;});
-            machine.buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, [](int k, int v){std::cout << "TERMINATE " << k << "  value=" << v << std::endl;});
-            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](int k, int v){std::cout << "ENDSTOP_X " << k << "  value=" << v << std::endl;});
-            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](int k, int v){std::cout << "ENDSTOP_Y " << k << "  value=" << v << std::endl;});
-            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](int k, int v){std::cout << "ENDSTOP_Z " << k << "  value=" << v << std::endl;});
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE, [](int k, int v) { std::cout << "PAUSE     " << k << "  value=" << v << std::endl; });
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, [](int k, int v) { std::cout << "TERMINATE " << k << "  value=" << v << std::endl; });
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](int k, int v) { std::cout << "ENDSTOP_X " << k << "  value=" << v << std::endl; });
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](int k, int v) { std::cout << "ENDSTOP_Y " << k << "  value=" << v << std::endl; });
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](int k, int v) { std::cout << "ENDSTOP_Z " << k << "  value=" << v << std::endl; });
 
 
             std::cout << "type 'q' to quit" << std::endl;
@@ -629,7 +642,6 @@ int main(int argc, char** argv)
                 std::cin >> command;
             } while (command != "q");
         }
-
     }
 
     return 0;
