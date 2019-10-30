@@ -417,7 +417,7 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
 {
     fifo_c<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps;
     std::atomic<bool> cancel_execution = false;
-    std::atomic<bool> paused = false;
+    std::atomic<bool> paused{false};
     std::function<void(int, int)> on_pause_execution = [machine, &paused](int, int s) {
         if (s == 1) {
             if (paused) {
