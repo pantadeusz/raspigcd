@@ -1,7 +1,5 @@
 # raspigcd2
 
-(WARNING: This version is unstable - please report bugs as issues, API may change. Previous version is in directory v0.9.1.final.archive)
-
 [![Build Status](https://travis-ci.org/pantadeusz/raspigcd2.svg?branch=master)](https://travis-ci.org/pantadeusz/raspigcd2)
 
 The G-CODE interpreter for Raspberry Pi 3 (it works on older versions, but untested)
@@ -119,3 +117,14 @@ will  execute as following parts interpreted as separate executions of motor thr
 AGPL
 
 If you are interested in different (non-exclusive) license, please contact me (author).
+
+## Contributing
+
+(this section will be cleared soon)
+
+You can send pull requests and issues. The credits will be yours and the 
+version with merged changes will be on the same license (AGPL). As a 
+contributor you can ask me (pantadeusz) for different license for the 
+code (I don't promise I will give it). I will have the right to license the code 
+with contribution differently (like the RedHat does) for commercial 
+purposes - for example - with custom features.
