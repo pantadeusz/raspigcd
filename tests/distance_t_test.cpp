@@ -84,3 +84,37 @@ TEST_CASE("distance_t - check vector operations", "[common][distance_t]")
     //    REQUIRE(ret == Approx(M_PI));
     //}
 }
+
+
+TEST_CASE("distance_t - following path with given positions and velocities", "[common][distance_t][follow_path_with_velocity]")
+{
+    SECTION("when two points are the same relative to the distance_t, then the angle should be 0")
+    {
+        std::vector<generic_position_t<double, 2>> path_points_with_velocity = {
+            {0.0, 0.0},
+            {10.0, 10.0},
+            {20.0, 11.0},
+            {20.0, 5.0},
+            {5.0, 5.0},
+            {0.0, 0.0},
+            {-20.0, 20.0},
+        };
+        double t = 0.0, dt = 0.01;
+        std::vector < double > distances;
+        std::vector < double > velocities;
+        std::vector < double > times;
+        follow_path_with_velocity<2>(
+            path_points_with_velocity,
+            [&](const auto& position) {
+                distances.push_back(position[0]);
+                velocities.push_back(position[1]);
+                times.push_back(t);
+                t += dt;
+            },
+            dt,
+            0.001);
+        REQUIRE(times.size() == 998);
+        REQUIRE(distances.at(200) == Approx(9.6862653211));
+        REQUIRE(velocities.at(200) == Approx(9.841882605));
+    }
+}

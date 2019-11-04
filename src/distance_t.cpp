@@ -30,6 +30,8 @@
 #include <future>
 #include <numeric>
 
+#ifdef __DO_NOT_COMPILE_THIS__
+
 namespace raspigcd {
 
 template <class T, std::size_t N>
@@ -386,3 +388,6 @@ template void follow_path_with_velocity<5>(const std::vector<generic_position_t<
     const double min_velocity);
 
 } // namespace raspigcd
+
+
+#endif
