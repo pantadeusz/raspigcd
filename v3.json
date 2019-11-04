@@ -80,5 +80,8 @@
       "steps_per_mm": 100.0
     }
   ],
-  "tick_duration_us": 50
+  "tick_duration_us": 50,
+  "steps_generator_0":"program_to_steps",
+  "steps_generator":"linear_interpolation",
+  "steps_generator_2":"bezier_spline"
 }

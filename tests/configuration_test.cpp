@@ -62,7 +62,8 @@ TEST_CASE( "Configuration handling", "[configuration]" ) {
             .pin = 18,
             .cycle_time_seconds = 0.1,
             .duty_min = 0.0,
-            .duty_max = 0.1
+            .duty_max = 0.1,
+            .pin_negate = false
         }
     };
 

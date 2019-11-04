@@ -313,7 +313,7 @@ execution_objects_t stepping_simple_timer_factory(configuration::global cfg)
         steppers_drv = rp;
         spindles_drv = rp;
         buttons_drv = rp;
-    } catch (const std::invalid_argument e) {
+    } catch (const std::invalid_argument &e) {
         std::cerr << "verry bad runtime error. Please check configuration file: " << e.what() << std::endl;
 	throw e;
     } catch (...) {
