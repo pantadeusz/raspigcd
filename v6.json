@@ -1,0 +1,100 @@
+{
+  "machine_name": "freziahomecorexy",
+  "buttons": [
+    {
+      "pin": 21,
+      "pullup": true,
+      "invert": false
+    },
+    {
+      "pin": 20,
+      "pullup": true,
+      "invert": false
+    },
+    {
+      "pin": 16,
+      "pullup": true,
+      "invert": false
+    },
+    {
+      "pin": 12,
+      "pullup": true,
+      "invert": false
+    },
+    {
+      "pin": 26,
+      "pullup": true,
+      "invert": false
+    }
+  ],
+  "lasers": [],
+  "max_accelerations_mm_s2": [
+    800.0,
+    800.0,
+    40.0,
+    200.0
+  ],
+  "max_no_accel_velocity_mm_s": [
+    3.0,
+    3.0,
+    0.15,
+    3.0
+  ],
+  "max_velocity_mm_s": [
+    500.0,
+    500.0,
+    50.0,
+    20.0
+  ],
+  "motion_layout2": "cartesian",
+  "motion_layout": "corexy",
+  "scale": [
+    -1.0,
+    1.0,
+    -1.0,
+    1.0
+  ],
+  "simulate_execution": false,
+  "spindles": [
+    {
+      "cycle_time_seconds": 0.01,
+      "duty_max": 0.002,
+      "duty_min": 0.001,
+      "pin": 18,
+      "pin_negate":false
+    }
+  ],
+  "steppers": [
+    {
+      "dir": 27,
+      "en": 10,
+      "step": 22,
+      "steps_per_mm": 80.0
+    },
+    {
+      "dir": 4,
+      "en": 10,
+      "step": 17,
+      "steps_per_mm": 80.0
+    },
+    {
+      "dir": 9,
+      "en": 10,
+      "step": 11,
+      "steps_per_mm": 1066.6666666
+    },
+    {
+      "dir": 0,
+      "en": 10,
+      "step": 5,
+      "steps_per_mm": 55.0
+    }
+  ],
+  "tick_duration_us": 35,
+  "douglas_peucker_marigin":0.04,
+  "steps_generator_0":"program_to_steps",
+  "steps_generator":"linear_interpolation",
+  "steps_generator_2":"bezier_spline",
+  "lowleveltimer_1": "low_timers_fake",
+  "lowleveltimer_2": "low_timers_wait_for"
+}
