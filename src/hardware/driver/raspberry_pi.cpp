@@ -18,8 +18,6 @@
 */
 
 
-
-
 #include <hardware/driver/raspberry_pi.hpp>
 
 #include <chrono>
@@ -69,21 +67,20 @@ namespace driver {
 
 // 1 - output, 0 - input
 // inspired by https://github.com/RPi-Distro/raspi-gpio/blob/master/raspi-gpio.c#L302 by Ja
-void set_gpio_mode_x(struct bcm2835_peripheral &gpio_, int gpio, int fsel)
+void set_gpio_mode_x(struct bcm2835_peripheral& gpio_, int gpio, int fsel)
 {
     uint32_t reg = gpio / 10;
     uint32_t sel = gpio % 10;
-    volatile uint32_t *tmp = gpio_.addr+reg;
-    *tmp = *tmp & (~(0x7<<(3*sel))); // with mask
-    *tmp = *tmp | ((fsel&0x7)<<(3*sel));
+    volatile uint32_t* tmp = gpio_.addr + reg;
+    *tmp = *tmp & (~(0x7 << (3 * sel))); // with mask
+    *tmp = *tmp | ((fsel & 0x7) << (3 * sel));
 }
-
 
 
 raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 {
-    std::map<int,std::string> pins_taken;
-    auto pins_taken_check = [&pins_taken](int p, std::string desc){
+    std::map<int, std::string> pins_taken;
+    auto pins_taken_check = [&pins_taken](int p, std::string desc) {
         if (pins_taken.count(p)) throw std::invalid_argument(std::string("pin ") + std::to_string(p) + " already taken by " + pins_taken[p]);
         pins_taken[p] = desc;
     };
@@ -115,18 +112,19 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 
     spindles = configuration.spindles;
     steppers = configuration.steppers;
+    if (steppers.size() > 3) throw std::invalid_argument("raspberry_pi_3::raspberry_pi_3: currently the maximal number of stepper motors is 3.");
     buttons = configuration.buttons;
 
     std::cerr << "raspberry_pi_3::raspberry_pi_3: STEPPERS " << std::endl;
     // enable steppers
     for (auto c : steppers) {
-//        set_gpio_mode(gpio,c.step,1);
-//        set_gpio_mode(gpio,c.dir,1);
-//        set_gpio_mode(gpio,c.en,1);
-        pins_taken_check(c.step,"OUT step");
+        //        set_gpio_mode(gpio,c.step,1);
+        //        set_gpio_mode(gpio,c.dir,1);
+        //        set_gpio_mode(gpio,c.en,1);
+        pins_taken_check(c.step, "OUT step");
         INP_GPIO(c.step);
         OUT_GPIO(c.step);
-        pins_taken_check(c.dir,"OUT dir");
+        pins_taken_check(c.dir, "OUT dir");
         INP_GPIO(c.dir);
         OUT_GPIO(c.dir);
         //pins_taken_check(c.en,"OUT en");
@@ -138,13 +136,14 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 
     // enable spindles
 
-    std::cerr << "raspberry_pi_3::raspberry_pi_3: SPINDLES " << spindles.size()<< std::endl;
+    std::cerr << "raspberry_pi_3::raspberry_pi_3: SPINDLES " << spindles.size() << std::endl;
     _threads_alive = true;
     for (unsigned i = 0; i < spindles.size(); i++) {
         auto sppwm = spindles[i];
-        std::cout << std::endl << "setting pin " << sppwm.pin << " as spindle pwm output" << std::endl;
-//        set_gpio_mode(gpio,sppwm.pin,1);
-        pins_taken_check(sppwm.pin,"OUT pwm spindle");
+        std::cout << std::endl
+                  << "setting pin " << sppwm.pin << " as spindle pwm output" << std::endl;
+        //        set_gpio_mode(gpio,sppwm.pin,1);
+        pins_taken_check(sppwm.pin, "OUT pwm spindle");
         INP_GPIO(sppwm.pin);
         OUT_GPIO(sppwm.pin);
 
@@ -165,14 +164,18 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
             while (_threads_alive) {
                 // 1
                 if (_duty >= 0.0) {
-                    if (sppwm.pin_negate)GPIO_CLR = 1 << sppwm.pin; 
-                    else GPIO_SET = 1 << sppwm.pin;
+                    if (sppwm.pin_negate)
+                        GPIO_CLR = 1 << sppwm.pin;
+                    else
+                        GPIO_SET = 1 << sppwm.pin;
                     std::this_thread::sleep_until(prevTime + std::chrono::microseconds((int)(_duty * 1000000.0)));
                 }
                 if (_duty < sppwm.cycle_time_seconds) {
                     // 0
-                    if (sppwm.pin_negate) GPIO_SET = 1 << sppwm.pin;
-                    else GPIO_CLR = 1 << sppwm.pin;
+                    if (sppwm.pin_negate)
+                        GPIO_SET = 1 << sppwm.pin;
+                    else
+                        GPIO_CLR = 1 << sppwm.pin;
                 }
                 prevTime = prevTime + std::chrono::microseconds((int)(sppwm.cycle_time_seconds * 1000000.0));
                 std::this_thread::sleep_until(prevTime);
@@ -189,15 +192,15 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 
     unsigned int pull_value = 0;
     for (auto& e : buttons) {
-        pins_taken_check(e.pin,"IN button");
+        pins_taken_check(e.pin, "IN button");
         INP_GPIO(e.pin);
-//        set_gpio_mode(gpio,e.pin,0);
+        //        set_gpio_mode(gpio,e.pin,0);
         if (e.pullup) pull_value |= 1 << e.pin;
         buttons_state.push_back(0);
-        buttons_callbacks.push_back([](int,int){});
+        buttons_callbacks.push_back([](int, int) {});
     }
     while (buttons_callbacks.size() < 100) {
-        buttons_callbacks.push_back([](int,int){});
+        buttons_callbacks.push_back([](int, int) {});
     }
 
     // enable pull-up on selected gpios
@@ -210,23 +213,24 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
     GPIO_PULL = 0;
     GPIO_PULLCLK0 = 0;
 
-    _btn_thread = std::async(std::launch::async,[this]() {
+    _btn_thread = std::async(std::launch::async, [this]() {
         static int anti_bounce_n = 100;
-        std::vector <int> button_anti_bounce(buttons.size());
+        std::vector<int> button_anti_bounce(buttons.size());
         while (_threads_alive) {
             using namespace std::chrono_literals;
             for (unsigned k_i = 0; k_i < buttons.size(); k_i++) {
-                if (button_anti_bounce[k_i] > 0) button_anti_bounce[k_i]--;
+                if (button_anti_bounce[k_i] > 0)
+                    button_anti_bounce[k_i]--;
                 else {
-                auto e = buttons[k_i];
-                int v = (unsigned char)(1 - ((GPIO_READ(e.pin)) >> (e.pin)));
-                v = (e.invert)?(1-v):v;
-                if (buttons_state[k_i] != v) {
-                    auto f = buttons_callbacks.at(k_i);
-                    button_anti_bounce[k_i] = anti_bounce_n;
-                    f(k_i,v);
-                }
-                buttons_state[k_i] = v;
+                    auto e = buttons[k_i];
+                    int v = (unsigned char)(1 - ((GPIO_READ(e.pin)) >> (e.pin)));
+                    v = (e.invert) ? (1 - v) : v;
+                    if (buttons_state[k_i] != v) {
+                        auto f = buttons_callbacks.at(k_i);
+                        button_anti_bounce[k_i] = anti_bounce_n;
+                        f(k_i, v);
+                    }
+                    buttons_state[k_i] = v;
                 }
             }
             std::this_thread::sleep_for(200us);
@@ -235,20 +239,23 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 }
 
 
-void raspberry_pi_3::on_key(int btn, std::function<void(int,int)> callback_) {
+void raspberry_pi_3::on_key(int btn, std::function<void(int, int)> callback_)
+{
     //std::cout << "set onkey callback" << std::endl;
     buttons_callbacks[btn] = callback_;
     //std::cout << "                    ok" << std::endl;
 }
-std::function<void(int,int)>  raspberry_pi_3::on_key(int btn) {
+std::function<void(int, int)> raspberry_pi_3::on_key(int btn)
+{
     //std::cout << "get onkey callback" << std::endl;
     try {
-    return buttons_callbacks.at(btn);
+        return buttons_callbacks.at(btn);
     } catch (...) {
-        return [](int a,int b){std::cout << "keybord handler not set " << a << " " << b << std::endl;};
+        return [](int a, int b) { std::cout << "keybord handler not set " << a << " " << b << std::endl; };
     }
 }
-std::vector < int > raspberry_pi_3::keys_state() {
+std::vector<int> raspberry_pi_3::keys_state()
+{
     return buttons_state;
 }
 
@@ -262,30 +269,50 @@ raspberry_pi_3::~raspberry_pi_3()
     //    t.join();
     _btn_thread.get();
     for (auto& t : _spindle_threads)
-        t.join();//get();
+        t.join(); //get();
     munmap((void*)gpio.addr, BLOCK_SIZE);
     close(gpio.mem_fd);
     std::cerr << "raspberry_pi_3::~raspberry_pi_3()..." << std::endl;
 }
 
 
-void raspberry_pi_3::do_step(const std::array<single_step_command,4> &b)
+void raspberry_pi_3::do_step(const std::array<single_step_command, 4>& b)
 {
-
-    unsigned int step_clear = (1 << steppers[0].step) | (1 << steppers[1].step) |
+    /*
+    unsigned int step_clear = (1 << steppers[0].step) |
+                              (1 << steppers[1].step) |
                               (1 << steppers[2].step); // | (1 << steppers[3].step);
     // step direction
     unsigned int dir_set =
-        (b[0].dir << steppers[0].dir) | (b[1].dir << steppers[1].dir) |
-        (b[2].dir << steppers[2].dir);// | (b[3].dir << steppers[3].dir);
+        (b[0].dir << steppers[0].dir) |
+        (b[1].dir << steppers[1].dir) |
+        (b[2].dir << steppers[2].dir); // | (b[3].dir << steppers[3].dir);
     unsigned int dir_clear = ((1 - b[0].dir) << steppers[0].dir) |
                              ((1 - b[1].dir) << steppers[1].dir) |
-                             ((1 - b[2].dir) << steppers[2].dir);// |
-//                             ((1 - b[3].dir) << steppers[3].dir);
+                             ((1 - b[2].dir) << steppers[2].dir); // |
+                                                                  //                             ((1 - b[3].dir) << steppers[3].dir);
     // shoud do step?
     unsigned int step_set =
-        (b[0].step << steppers[0].step) | (b[1].step << steppers[1].step) |
-        (b[2].step << steppers[2].step);// | (b[3].step << steppers[3].step);
+        (b[0].step << steppers[0].step) |
+        (b[1].step << steppers[1].step) |
+        (b[2].step << steppers[2].step); // | (b[3].step << steppers[3].step);
+*/
+    unsigned int step_clear = 0;
+    // step direction
+    unsigned int dir_set = 0;
+    unsigned int dir_clear = 0;
+    // shoud do step?
+    unsigned int step_set = 0;
+    for (std::size_t i = 0; i < steppers.size(); i++) {
+        const auto& stepper = steppers[i];
+        const auto& bs = b[i];
+        step_clear = step_clear | (1 << stepper.step);
+        // step direction
+        dir_set = dir_set | (bs.dir << stepper.dir);
+        dir_clear = dir_clear | ((1 - bs.dir) << stepper.dir);
+        // shoud do step?
+        step_set = step_set | (bs.step << stepper.step);
+    }
 
     // first set directions
     GPIO_SET = dir_set;
