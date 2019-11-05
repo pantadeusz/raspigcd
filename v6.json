@@ -81,7 +81,7 @@
       "dir": 9,
       "en": 10,
       "step": 11,
-      "steps_per_mm": 1066.6666666
+      "steps_per_mm": 160.0
     },
     {
       "dir": 0,
