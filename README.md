@@ -56,6 +56,8 @@ make -j 2 gcd
 sudo ./gcd -c ../v4.json -f your_gcode_file.gcd
 ```
 
+More info: [BUILD.md](BUILD.md)
+
 ### Dependency - Catch2
 
 You should install library for tests:
