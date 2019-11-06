@@ -187,6 +187,7 @@ public:
     double tick_duration() const; // tick time in seconds. 0.00005 = 50microseconds
     steps_generator_e steps_generator; // selected steps generator - the method that transforms path to steps
     bool simulate_execution;      // should I use simulator by default
+    bool sequential_gcode_execution;      ///< gcode execution should follow: generate_steps->execute_steps->generate_steps->execute_steps...
     double douglas_peucker_marigin;
     low_timers_e lowleveltimer;
 
