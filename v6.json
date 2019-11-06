@@ -82,12 +82,6 @@
       "en": 10,
       "step": 11,
       "steps_per_mm": 160.0
-    },
-    {
-      "dir": 0,
-      "en": 10,
-      "step": 5,
-      "steps_per_mm": 55.0
     }
   ],
   "tick_duration_us": 35,
