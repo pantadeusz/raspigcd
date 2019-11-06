@@ -90,5 +90,6 @@
   "steps_generator":"linear_interpolation",
   "steps_generator_2":"bezier_spline",
   "lowleveltimer_1": "low_timers_fake",
-  "lowleveltimer_2": "low_timers_wait_for"
+  "lowleveltimer_2": "low_timers_wait_for",
+  "sequential_gcode_execution":true
 }

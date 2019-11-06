@@ -60,6 +60,7 @@ double global::tick_duration() const
 global& global::load_defaults()
 {
     tick_duration_us = 50;
+    sequential_gcode_execution = false;
     simulate_execution = false;
     steps_generator = steps_generator_e::PROGRAM_TO_STEPS;
 
@@ -203,6 +204,7 @@ void to_json(nlohmann::json& j, const global& p)
     j = nlohmann::json{
         {"tick_duration_us", p.tick_duration_us},
         {"simulate_execution", p.simulate_execution},
+        {"sequential_gcode_execution", p.sequential_gcode_execution},
         {"steps_generator", steps_generator_strings.at(p.steps_generator)},
         {"douglas_peucker_marigin", p.douglas_peucker_marigin},
         {"lowleveltimer", lowleveltimertostring(p.lowleveltimer)},
@@ -220,6 +222,7 @@ void to_json(nlohmann::json& j, const global& p)
 void from_json(const nlohmann::json& j, global& p)
 {
     p.simulate_execution = j.value("simulate_execution", p.simulate_execution);
+    p.sequential_gcode_execution = j.value("sequential_gcode_execution", p.sequential_gcode_execution);
     p.douglas_peucker_marigin = j.value("douglas_peucker_marigin", p.douglas_peucker_marigin);
     p.steps_generator = steps_generator_values.at(j.value("steps_generator", steps_generator_strings.at(p.steps_generator)));
     p.tick_duration_us = j.value("tick_duration_us", p.tick_duration_us);
@@ -271,6 +274,7 @@ std::ostream& operator<<(std::ostream& os, global const& value)
 bool operator==(const global& l, const global& r)
 {
     return (l.tick_duration_us == r.tick_duration_us) &&
+           (l.sequential_gcode_execution == r.sequential_gcode_execution) &&
            (l.steps_generator == r.steps_generator) &&
            (l.max_accelerations_mm_s2 == r.max_accelerations_mm_s2) &&
            (l.max_accelerations_mm_s2 == r.max_accelerations_mm_s2) &&

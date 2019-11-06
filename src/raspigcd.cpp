@@ -370,7 +370,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
                     auto time1 = std::chrono::high_resolution_clock::now();
                     double dt = std::chrono::duration<double, std::milli>(time1 - time0).count();
                     std::cout << "calculations of " << ppart.size() << " commands took " << dt << " milliseconds; have " << m_commands.size() << " steps to execute" << std::endl;
-                    calculated_multisteps.put(cancel_execution, {m_commands, machine_state});
+                    calculated_multisteps.put(cancel_execution, {m_commands, machine_state},cfg.sequential_gcode_execution?1:3);
 
                     if (cancel_execution) return -100;
                 } break;
@@ -378,7 +378,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
                     if (ppart[0].count('X')) machine_state['X'] = 0.0;
                     if (ppart[0].count('Y')) machine_state['Y'] = 0.0;
                     if (ppart[0].count('Z')) machine_state['Z'] = 0.0;
-                    calculated_multisteps.put(cancel_execution, {{}, machine_state});
+                    calculated_multisteps.put(cancel_execution, {{}, machine_state},cfg.sequential_gcode_execution?1:3);
                     if (cancel_execution) return -100;
                 } break;
                 case 92: {
@@ -387,7 +387,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
                         if (pelem.count('Y')) machine_state['Y'] = pelem['Y'];
                         if (pelem.count('Z')) machine_state['Z'] = pelem['Z'];
                     }
-                    calculated_multisteps.put(cancel_execution, {{}, machine_state});
+                    calculated_multisteps.put(cancel_execution, {{}, machine_state},cfg.sequential_gcode_execution?1:3);
                     if (cancel_execution) return -100;
                 } break;
                 }
