@@ -90,7 +90,9 @@ global& global::load_defaults()
             .cycle_time_seconds = 0.1,
             .duty_min = 0.0,
             .duty_max = 0.1,
-            .pin_negate = false}
+            .pin_negate = false,
+            .mode = SPINDLE
+        }
         /*,        {
             pin : 18,
             cycle_time_seconds : 0.02,
@@ -129,7 +131,8 @@ void to_json(nlohmann::json& j, const spindle_pwm& p)
         {"cycle_time_seconds", p.cycle_time_seconds}, // 20ms
         {"duty_min", p.duty_min},
         {"duty_max", p.duty_max},
-        {"pin_negate",p.pin_negate}};
+        {"pin_negate",p.pin_negate},
+        {"mode",(p.mode == SPINDLE) ? "spindle" : "laser"}};
 }
 
 void from_json(const nlohmann::json& j, spindle_pwm& p)
@@ -139,6 +142,13 @@ void from_json(const nlohmann::json& j, spindle_pwm& p)
     p.duty_min = j.value("duty_min", p.duty_min);
     p.duty_max = j.value("duty_max", p.duty_max);
     p.pin_negate = j.value("pin_negate",p.pin_negate);
+    {
+        std::string s = j.value("mode", (p.mode == SPINDLE) ? "spindle" : "laser");
+        if (!((s == "spindle") || (s == "laser"))) throw std::invalid_argument("spindle_pwm mode can be only spindle or laser");
+        p.mode = (s == "spindle") ? SPINDLE : p.mode;
+        p.mode = (s == "laser") ? LASER : p.mode;
+    }
+
 }
 
 std::ostream& operator<<(std::ostream& os, spindle_pwm const& value)
@@ -215,7 +225,6 @@ void to_json(nlohmann::json& j, const global& p)
         {"max_no_accel_velocity_mm_s", p.max_no_accel_velocity_mm_s},
         {"spindles", p.spindles},
         {"steppers", p.steppers},
-        {"lasers", p.lasers},
         {"buttons", p.buttons}};
 }
 
@@ -261,7 +270,6 @@ void from_json(const nlohmann::json& j, global& p)
     p.spindles = j.value("spindles", p.spindles);
     p.steppers = j.value("steppers", p.steppers);
     p.buttons = j.value("buttons", p.buttons);
-    p.lasers = j.value("lasers", p.lasers);
 }
 
 std::ostream& operator<<(std::ostream& os, global const& value)
@@ -309,30 +317,6 @@ bool operator==(const spindle_pwm& l, const spindle_pwm& r)
            (l.cycle_time_seconds == r.cycle_time_seconds) &&
            (l.duty_min == r.duty_min) &&
            (l.duty_max == r.duty_max);
-}
-
-
-void to_json(nlohmann::json& j, const sync_laser& p)
-{
-    j = nlohmann::json{
-        {"pin", p.pin},
-        {"hi_is_off", p.hi_is_off}};
-}
-void from_json(const nlohmann::json& j, sync_laser& p)
-{
-    p.hi_is_off = j.value("hi_is_off", p.hi_is_off);
-    p.pin = j.value("pin", p.pin);
-}
-std::ostream& operator<<(std::ostream& os, sync_laser const& value)
-{
-    nlohmann::json j = value;
-    os << j.dump(2);
-    return os;
-}
-bool operator==(const sync_laser& l, const sync_laser& r)
-{
-    return (l.pin == r.pin) &&
-           (l.hi_is_off == r.hi_is_off);
 }
 
 
