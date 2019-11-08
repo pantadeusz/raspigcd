@@ -44,8 +44,5 @@ void to_json( nlohmann::json& j, const button& p );
 void from_json( const nlohmann::json& j, button& p );
 
 
-void to_json( nlohmann::json& j, const sync_laser& p );
-void from_json( const nlohmann::json& j, sync_laser& p );
-std::ostream& operator<<( std::ostream& os, sync_laser const& value );
 } // namespace configuration
 } // namespace raspigcd

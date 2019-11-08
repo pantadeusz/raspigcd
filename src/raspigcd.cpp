@@ -473,7 +473,13 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
                     case 1: {
                         auto [m_commands, machine_state] = calculated_multisteps.get(cancel_execution);
                         try {
+                            if (((int)(ppart[0].at('G')) == 1) && cfg.spindles.at(0).mode == configuration::spindle_modes::LASER) {
+                                machine.spindles_drv->spindle_pwm_power(0, spindles_status[0]);
+                            }
                             execute_calculated_multistep(m_commands, machine, on_stop_execution, cancel_execution, paused, last_spindle_on_delay, spindles_status);
+                            if (((int)(ppart[0].at('G')) == 1) && cfg.spindles.at(0).mode == configuration::spindle_modes::LASER) {
+                                machine.spindles_drv->spindle_pwm_power(0, 0.0);
+                            }
                         } catch (const raspigcd::hardware::execution_terminated& et) {
                             machine.spindles_drv->spindle_pwm_power(0, 0.0);
                             machine.steppers_drv->enable_steppers({false});

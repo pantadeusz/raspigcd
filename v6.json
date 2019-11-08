@@ -61,7 +61,8 @@
       "duty_max": 0.002,
       "duty_min": 0.001,
       "pin": 18,
-      "pin_negate":false
+      "pin_negate":false,
+      "mode":"laser"
     }
   ],
   "steppers": [
