@@ -23,6 +23,7 @@
 
 #include <functional>
 #include <vector>
+#include <memory>
 
 namespace raspigcd {
 namespace hardware {
@@ -56,6 +57,30 @@ public:
      */
     virtual std::vector < int > keys_state() = 0;
 };
+
+
+/**
+ * @brief Allow for pushing and popping button handlers
+ * 
+ */
+class low_buttons_handlers_guard {
+    std::vector<std::function<void(int,int)> > mappings;
+    std::shared_ptr<raspigcd::hardware::low_buttons> lbuttons;
+    public:
+    low_buttons_handlers_guard(std::shared_ptr<raspigcd::hardware::low_buttons> lbuttons_) {
+        lbuttons = lbuttons_;
+        for (unsigned i = 0; i <= low_buttons_default_meaning_t::TERMINATE; i++) {
+            mappings.push_back(lbuttons->on_key(i));
+        }
+    };
+
+    ~low_buttons_handlers_guard() {
+        for (unsigned i = 0; i <= low_buttons_default_meaning_t::TERMINATE; i++) {
+            lbuttons->on_key(i,mappings[i]);
+        }
+    };
+};
+
 
 } // namespace hardware
 } // namespace raspigcd

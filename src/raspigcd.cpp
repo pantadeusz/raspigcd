@@ -287,21 +287,16 @@ public:
     fifo_c<T>() : lock(ATOMIC_FLAG_INIT){};
     T get(std::atomic<bool>& cancel_execution)
     {
-        int counter = 0;
-        //std::cout << "get_from_fifo..." << std::endl;
         while (!cancel_execution) {
             while (lock.test_and_set(std::memory_order_acquire))
                 ;
-            ///if ((counter % 10) == 0) std::cout << "get: " << data.size() << std::endl;
             if (data.size() > 0) {
                 auto ret = data.front();
                 data.pop_front();
                 lock.clear(std::memory_order_release);
-                //std::cout << "get_from_fifo... ok 1" << std::endl;
                 return ret;
             } else {
                 lock.clear(std::memory_order_release);
-                //std::cout << "get_from_fifo... ok 2" << std::endl;
                 std::this_thread::sleep_for(std::chrono::milliseconds(191));
             }
         }
@@ -310,23 +305,17 @@ public:
 
     void put(std::atomic<bool>& cancel_execution, T value, int max_queue_size = 3)
     {
-        int counter = 0;
-        //std::cout << "put_to_fifo..." << std::endl;
         while (!cancel_execution) {
             while (lock.test_and_set(std::memory_order_acquire))
                 ;
-            ///if ((counter % 50) == 0) std::cout << "put: " << data.size() << std::endl;
             if (data.size() < max_queue_size) {
                 data.push_back(value);
                 lock.clear(std::memory_order_release);
-                //std::cout << "put_to_fifo... ok 1" << std::endl;
                 return;
             } else {
                 lock.clear(std::memory_order_release);
                 std::this_thread::sleep_for(std::chrono::milliseconds(40));
-                //std::cout << "put_to_fifo... ok 2" << std::endl;
             }
-            counter++;
         }
 
         throw std::invalid_argument("fifo_c: the put method broken.");
@@ -645,13 +634,14 @@ int main(int argc, char** argv)
             do {
                 std::cin >> command;
                 if (command == "execute") {
+                    low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
                     std::string filename;
                     std::getline(std::cin, filename);
                     filename = std::regex_replace(filename, std::regex("^ +"), "");
                     std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
                     try {
                         auto [err_code, machine_state] = execute_gcode_file(filename, machine);
-                        std::cout << "EXECUTE_FINISHED: " << err_code << "MACHINE_STATE:";
+                        std::cout << "EXECUTE_FINISHED: " << err_code << "; MACHINE_STATE:";
                         for (auto [k, v] : std::move(machine_state))
                             std::cout << " " << k << "=" << v;
                         std::cout << std::endl;
