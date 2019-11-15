@@ -44,6 +44,7 @@ This is simple program that uses the library. It will execute given GCode.
 #include <future>
 #include <mutex>
 #include <random>
+#include <regex>
 #include <sstream>
 #include <streambuf>
 #include <string>
@@ -370,7 +371,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
                     auto time1 = std::chrono::high_resolution_clock::now();
                     double dt = std::chrono::duration<double, std::milli>(time1 - time0).count();
                     std::cout << "calculations of " << ppart.size() << " commands took " << dt << " milliseconds; have " << m_commands.size() << " steps to execute" << std::endl;
-                    calculated_multisteps.put(cancel_execution, {m_commands, machine_state},cfg.sequential_gcode_execution?1:3);
+                    calculated_multisteps.put(cancel_execution, {m_commands, machine_state}, cfg.sequential_gcode_execution ? 1 : 3);
 
                     if (cancel_execution) return -100;
                 } break;
@@ -378,7 +379,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
                     if (ppart[0].count('X')) machine_state['X'] = 0.0;
                     if (ppart[0].count('Y')) machine_state['Y'] = 0.0;
                     if (ppart[0].count('Z')) machine_state['Z'] = 0.0;
-                    calculated_multisteps.put(cancel_execution, {{}, machine_state},cfg.sequential_gcode_execution?1:3);
+                    calculated_multisteps.put(cancel_execution, {{}, machine_state}, cfg.sequential_gcode_execution ? 1 : 3);
                     if (cancel_execution) return -100;
                 } break;
                 case 92: {
@@ -387,7 +388,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
                         if (pelem.count('Y')) machine_state['Y'] = pelem['Y'];
                         if (pelem.count('Z')) machine_state['Z'] = pelem['Z'];
                     }
-                    calculated_multisteps.put(cancel_execution, {{}, machine_state},cfg.sequential_gcode_execution?1:3);
+                    calculated_multisteps.put(cancel_execution, {{}, machine_state}, cfg.sequential_gcode_execution ? 1 : 3);
                     if (cancel_execution) return -100;
                 } break;
                 }
@@ -413,7 +414,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
 };
 
 
-int execute_command_parts(partitioned_program_t program_parts, execution_objects_t machine, converters::program_to_steps_f_t program_to_steps, configuration::global cfg)
+std::pair<int, block_t> execute_command_parts(partitioned_program_t program_parts, execution_objects_t machine, converters::program_to_steps_f_t program_to_steps, configuration::global cfg)
 {
     fifo_c<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps;
     std::atomic<bool> cancel_execution = false;
@@ -490,7 +491,7 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
                             currstate[3] = 0.001;
                             std::cerr << "TERMINATED at " << currstate << std::endl;
                             machine_state = distance_with_velocity_to_block(currstate);
-                            return -2;
+                            return {-2, machine_state};
                         }
                     } break;
                     case 28: {
@@ -547,10 +548,8 @@ int execute_command_parts(partitioned_program_t program_parts, execution_objects
                 }
             }
         }
-        return multistep_calculation_promise.get();
+        return {multistep_calculation_promise.get(), machine_state};
     }
-
-    return multistep_calculation_promise.get();
 };
 
 
@@ -564,14 +563,12 @@ int main(int argc, char** argv)
     bool raw_gcode = false; // should I push G commands directly, without adaptation to machine
     std::list<std::string> save_to_files_list;
 
-    auto execute_gcode_file = [&](const auto filename) {
+
+    auto execute_gcode_file = [&](const auto filename, const auto& machine) {
         using namespace raspigcd;
         using namespace raspigcd::hardware;
 
-        auto machine = stepping_simple_timer_factory(cfg);
-
-        converters::program_to_steps_f_t program_to_steps;
-        program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
+        converters::program_to_steps_f_t program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
 
         std::ifstream gcd_file(filename);
         if (!gcd_file.is_open()) throw std::invalid_argument("file should be opened");
@@ -605,7 +602,7 @@ int main(int argc, char** argv)
             f << back_to_gcode(program_parts) << std::endl;
         }
 
-        execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg);
+        return execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg);
     };
 
     for (unsigned i = 1; i < args.size(); i++) {
@@ -623,7 +620,8 @@ int main(int argc, char** argv)
             raw_gcode = true;
         } else if (args.at(i) == "-f") {
             i++;
-            execute_gcode_file(args.at(i));
+            auto machine = stepping_simple_timer_factory(cfg);
+            execute_gcode_file(args.at(i), machine);
         } else if (args.at(i) == "--configtest") {
             using namespace raspigcd;
             using namespace raspigcd::hardware;
@@ -646,6 +644,28 @@ int main(int argc, char** argv)
             std::string command;
             do {
                 std::cin >> command;
+                if (command == "execute") {
+                    std::string filename;
+                    std::getline(std::cin, filename);
+                    filename = std::regex_replace(filename, std::regex("^ +"), "");
+                    std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
+                    try {
+                        auto [err_code, machine_state] = execute_gcode_file(filename, machine);
+                        std::cout << "EXECUTE_FINISHED: " << err_code << "MACHINE_STATE:";
+                        for (auto [k, v] : std::move(machine_state))
+                            std::cout << " " << k << "=" << v;
+                        std::cout << std::endl;
+                    } catch (const std::invalid_argument& e) {
+                        std::cerr << "cought invalid_argument: " << e.what() << std::endl;
+                    }
+                } else if (command == "q") {
+                    std::cout << "quit" << std::endl;
+                } else {
+                    std::cout << "Unknown command: " << command << std::endl;
+                    std::cout << "Valid commands are:" << std::endl;
+                    std::cout << "  q                     -> quit" << std::endl;
+                    std::cout << "  execute [filename]    -> execute gcode" << std::endl;
+                }
             } while (command != "q");
         }
     }
