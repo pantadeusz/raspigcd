@@ -330,7 +330,7 @@ execution_objects_t stepping_simple_timer_factory(configuration::global cfg)
         fk->on_enable_steppers = [](const std::vector<bool> m) {
             std::cout << "STEPPERS: ";
             for (auto e : m) {
-                std::cout << (e ? "+" : " ");
+                std::cout << (e ? "+" : "-");
             }
             std::cout << ";" << std::endl;
         };

@@ -176,7 +176,6 @@ void execute_calculated_multistep(raspigcd::hardware::multistep_commands_t m_com
 
         for (auto e : spindles_status) {
             machine.spindles_drv->spindle_pwm_power(e.first, e.second);
-            using namespace std::chrono_literals;
             machine.timer_drv->wait_us(1000 * last_spindle_on_delay);
         }
         return 1; // continue execuiton
@@ -427,17 +426,21 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
 
 
     auto multistep_calculation_promise = std::async(std::launch::async, [&]() {
-        std::cout << "multistep_producer_for_execution start" << std::endl;
-        auto ret = multistep_producer_for_execution(
-            calculated_multisteps,
-            program_parts,
-            machine,
-            program_to_steps,
-            cancel_execution,
-            cfg);
-        std::cout << "multistep_producer_for_execution finished with " << ret << " code" << std::endl;
-
-        return ret;
+        //std::cout << "multistep_producer_for_execution start" << std::endl;
+        try {
+            auto ret = multistep_producer_for_execution(
+                calculated_multisteps,
+                program_parts,
+                machine,
+                program_to_steps,
+                cancel_execution,
+                cfg);
+            //std::cout << "multistep_producer_for_execution finished with " << ret << " code" << std::endl;
+            return ret;
+        } catch (std::invalid_argument& e) {
+            std::cout << "multistep_producer_for_execution terminated while generating next parts of execution" << std::endl;
+            return -200;
+        }
     });
 
 
@@ -467,7 +470,7 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                             }
                         } catch (const raspigcd::hardware::execution_terminated& et) {
                             machine.spindles_drv->spindle_pwm_power(0, 0.0);
-                            machine.steppers_drv->enable_steppers({false});
+                            //                            machine.steppers_drv->enable_steppers({false,false,false,false});
                             auto currstate = block_to_distance_with_v_t(machine_state);
                             auto ddp = machine.motor_layout_->steps_to_cartesian(et.delta_steps);
                             for (int i = 0; i < 3; i++)
@@ -510,11 +513,11 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                     for (auto& m : ppart) {
                         switch ((int)(m.at('M'))) {
                         case 17:
-                            machine.steppers_drv->enable_steppers({true});
+                            machine.steppers_drv->enable_steppers({true, true, true, true});
                             wait_for_component_to_start(m, 200);
                             break;
                         case 18:
-                            machine.steppers_drv->enable_steppers({false});
+                            machine.steppers_drv->enable_steppers({false, false, false, false});
                             wait_for_component_to_start(m, 200);
                             break;
                         case 3:
@@ -554,7 +557,7 @@ int main(int argc, char** argv)
         converters::program_to_steps_f_t program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
 
         std::ifstream gcd_file(filename);
-        if (!gcd_file.is_open()) throw std::invalid_argument("file should be opened");
+        if (!gcd_file.is_open()) throw std::invalid_argument("could not open file \"" + filename + "\"");
         std::string gcode_text((std::istreambuf_iterator<char>(gcd_file)),
             std::istreambuf_iterator<char>());
 
@@ -625,7 +628,11 @@ int main(int argc, char** argv)
                 std::cin >> command;
                 if (execute_promise.valid()) {
                     if (execute_promise.wait_for(10ms) == std::future_status::ready) {
-                        machine_status_after_exec = execute_promise.get();
+                        try {
+                            machine_status_after_exec = execute_promise.get();
+                        } catch (const std::invalid_argument& e) {
+                            std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
+                        }
                     }
                 }
                 if ((command == "execute") || (command == "exec")) {
@@ -639,24 +646,25 @@ int main(int argc, char** argv)
                         execute_promise = std::async([&, filename]() {
                             low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
                             std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
-                            try {
-                                auto [err_code, machine_state] = execute_gcode_file(filename, machine, cancel_execution);
-                                std::cout << "EXECUTE_FINISHED: " << err_code << "; MACHINE_STATE:";
-                                for (auto [k, v] : machine_state)
-                                    std::cout << " " << k << "=" << v;
-                                std::cout << std::endl;
-                                return machine_state;
-                            } catch (const std::invalid_argument& e) {
-                                std::cerr << "cought invalid_argument: " << e.what() << std::endl;
-                                throw e;
-                            }
+                            auto [err_code, machine_state] = execute_gcode_file(filename, machine, cancel_execution);
+                            std::cout << "EXECUTE_FINISHED: " << err_code << "; MACHINE_STATE:";
+                            for (auto [k, v] : machine_state)
+                                std::cout << " " << k << "=" << v;
+                            std::cout << std::endl;
+                            return machine_state;
                         });
                     }
                 } else if (command == "stop") {
                     cancel_execution = true;
                     machine.stepping->terminate(1000);
+                    try {
+                        machine_status_after_exec = execute_promise.get();
+                    } catch (const std::invalid_argument& e) {
+                        std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
+                    }
+                    // TODO: go to base
+                    //machine.steppers_drv->enable_steppers({false,false,false,false});
                 } else if (command == "q") {
-                    std::cout << "quit" << std::endl;
                 } else if (command == "status") {
                     if (execute_promise.valid() && (execute_promise.wait_for(10ms) != std::future_status::ready)) {
                         std::cout << "STATUS: running" << std::endl;
@@ -666,10 +674,12 @@ int main(int argc, char** argv)
                             std::cout << "STATUS_ELEMENT: " << k << "=" << v << std::endl;
                     }
                 } else {
-                    std::cout << "Unknown command: " << command << std::endl;
-                    std::cout << "Valid commands are:" << std::endl;
-                    std::cout << "  q                     -> quit" << std::endl;
-                    std::cout << "  execute [filename]    -> execute gcode" << std::endl;
+                    std::cout << "UNKNOWN_COMMAND: " << command << std::endl;
+                    std::cout << "INFO: Valid commands are:" << std::endl;
+                    std::cout << "INFO:  q                     -> quit" << std::endl;
+                    std::cout << "INFO:  execute [filename]    -> execute gcode" << std::endl;
+                    std::cout << "INFO:  status                -> get status and last position" << std::endl;
+                    std::cout << "INFO:  stop                  -> terminate current execution" << std::endl;
                 }
             } while (command != "q");
         }
