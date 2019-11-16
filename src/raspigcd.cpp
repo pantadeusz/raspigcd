@@ -324,8 +324,9 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
                                             execution_objects_t machine,
                                             converters::program_to_steps_f_t program_to_steps,
                                             std::atomic<bool>& cancel_execution,
-                                            configuration::global cfg) -> int { // calculate multisteps
-    block_t machine_state = {{'F', 0.5}};
+                                            configuration::global cfg,
+                                            block_t machine_state) -> int { // calculate multisteps
+    
 
     std::map<int, double> spindles_status;
 
@@ -397,7 +398,10 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
 };
 
 
-std::pair<int, block_t> execute_command_parts(partitioned_program_t program_parts, execution_objects_t machine, converters::program_to_steps_f_t program_to_steps, configuration::global cfg, std::atomic<bool>& cancel_execution)
+std::pair<int, block_t> execute_command_parts(partitioned_program_t program_parts, 
+execution_objects_t machine, 
+converters::program_to_steps_f_t program_to_steps, 
+configuration::global cfg, std::atomic<bool>& cancel_execution,block_t machine_state_0)
 {
     fifo_c<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps;
 
@@ -434,7 +438,8 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                 machine,
                 program_to_steps,
                 cancel_execution,
-                cfg);
+                cfg,
+                machine_state_0);
             //std::cout << "multistep_producer_for_execution finished with " << ret << " code" << std::endl;
             return ret;
         } catch (std::invalid_argument& e) {
@@ -445,7 +450,7 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
 
 
     {
-        block_t machine_state = {{'F', 0.5}};
+        block_t machine_state_ret = machine_state_0;
 
         std::map<int, double> spindles_status;
         long int last_spindle_on_delay = 7000;
@@ -468,6 +473,7 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                             if (((int)(ppart[0].at('G')) == 1) && cfg.spindles.at(0).mode == configuration::spindle_modes::LASER) {
                                 machine.spindles_drv->spindle_pwm_power(0, 0.0);
                             }
+                            machine_state_ret = machine_state;
                         } catch (const raspigcd::hardware::execution_terminated& et) {
                             machine.spindles_drv->spindle_pwm_power(0, 0.0);
                             //                            machine.steppers_drv->enable_steppers({false,false,false,false});
@@ -494,9 +500,11 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                                 home_position_find('Z', program_to_steps, cfg, machine, cancel_execution, paused, last_spindle_on_delay, spindles_status);
                             }
                         }
+                        machine_state_ret = machine_state;
                     } break;
                     case 92: {
                         auto [m_commands, machine_state] = calculated_multisteps.get(cancel_execution);
+                        machine_state_ret = machine_state;
                     } break;
                     }
                 } else {
@@ -535,7 +543,7 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                 }
             }
         }
-        return {multistep_calculation_promise.get(), machine_state};
+        return {multistep_calculation_promise.get(), machine_state_ret};
     }
 };
 
@@ -550,7 +558,7 @@ int main(int argc, char** argv)
     bool raw_gcode = false; // should I push G commands directly, without adaptation to machine
 
 
-    auto execute_gcode_file = [&](const auto filename, const auto& machine, std::atomic<bool>& cancel_execution) {
+    auto execute_gcode_file = [&](const auto filename, const auto& machine, std::atomic<bool>& cancel_execution, block_t machine_state_0 = {{'F', 0.5}}) {
         using namespace raspigcd;
         using namespace raspigcd::hardware;
 
@@ -571,7 +579,7 @@ int main(int argc, char** argv)
         }
         auto program_parts = group_gcode_commands(std::move(program));
 
-        block_t machine_state = {{'F', 0.5}};
+        block_t machine_state = machine_state_0;//{{'F', 0.5}};
         if (!raw_gcode) {
             std::cerr << "PREPROCESSING GCODE" << std::endl;
             program_parts = insert_additional_nodes_inbetween(program_parts, machine_state, cfg);
@@ -581,7 +589,7 @@ int main(int argc, char** argv)
 
         std::cout << "STARTING...." << std::endl;
 
-        return execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg, cancel_execution);
+        return execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg, cancel_execution,machine_state_0);
     };
 
     for (unsigned i = 1; i < args.size(); i++) {
@@ -620,7 +628,7 @@ int main(int argc, char** argv)
             std::cout << "type 'q' to quit" << std::endl;
             std::string command;
             std::future<block_t> execute_promise;
-            block_t machine_status_after_exec;
+            block_t machine_status_after_exec = {{'F', 0.5}};
             std::atomic<bool> cancel_execution = false;
 
             do {
@@ -646,7 +654,7 @@ int main(int argc, char** argv)
                         execute_promise = std::async([&, filename]() {
                             low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
                             std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
-                            auto [err_code, machine_state] = execute_gcode_file(filename, machine, cancel_execution);
+                            auto [err_code, machine_state] = execute_gcode_file(filename, machine, cancel_execution,machine_status_after_exec);
                             std::cout << "EXECUTE_FINISHED: " << err_code << "; MACHINE_STATE:";
                             for (auto [k, v] : machine_state)
                                 std::cout << " " << k << "=" << v;
