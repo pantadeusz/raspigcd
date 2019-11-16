@@ -403,10 +403,10 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
 };
 
 
-std::pair<int, block_t> execute_command_parts(partitioned_program_t program_parts, execution_objects_t machine, converters::program_to_steps_f_t program_to_steps, configuration::global cfg)
+std::pair<int, block_t> execute_command_parts(partitioned_program_t program_parts, execution_objects_t machine, converters::program_to_steps_f_t program_to_steps, configuration::global cfg, std::atomic<bool>& cancel_execution)
 {
     fifo_c<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps;
-    std::atomic<bool> cancel_execution = false;
+
     std::atomic<bool> paused{false};
     std::function<void(int, int)> on_pause_execution = [machine, &paused](int, int s) {
         if (s == 1) {
@@ -553,7 +553,7 @@ int main(int argc, char** argv)
     std::list<std::string> save_to_files_list;
 
 
-    auto execute_gcode_file = [&](const auto filename, const auto& machine) {
+    auto execute_gcode_file = [&](const auto filename, const auto& machine, std::atomic<bool>& cancel_execution) {
         using namespace raspigcd;
         using namespace raspigcd::hardware;
 
@@ -591,7 +591,7 @@ int main(int argc, char** argv)
             f << back_to_gcode(program_parts) << std::endl;
         }
 
-        return execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg);
+        return execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg, cancel_execution);
     };
 
     for (unsigned i = 1; i < args.size(); i++) {
@@ -610,7 +610,8 @@ int main(int argc, char** argv)
         } else if (args.at(i) == "-f") {
             i++;
             auto machine = stepping_simple_timer_factory(cfg);
-            execute_gcode_file(args.at(i), machine);
+            std::atomic<bool> cancel_execution = false;
+            execute_gcode_file(args.at(i), machine, cancel_execution);
         } else if (args.at(i) == "--configtest") {
             using namespace raspigcd;
             using namespace raspigcd::hardware;
@@ -631,25 +632,55 @@ int main(int argc, char** argv)
 
             std::cout << "type 'q' to quit" << std::endl;
             std::string command;
+            std::future<block_t> execute_promise;
+            block_t machine_status_after_exec;
+            std::atomic<bool> cancel_execution = false;
+
             do {
+                using namespace std::chrono_literals;
                 std::cin >> command;
-                if (command == "execute") {
-                    low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
+                if (execute_promise.valid()) {
+                    if (execute_promise.wait_for(10ms) == std::future_status::ready) {
+                        machine_status_after_exec = execute_promise.get();
+                    }
+                }
+                if ((command == "execute") || (command == "exec")) {
                     std::string filename;
                     std::getline(std::cin, filename);
                     filename = std::regex_replace(filename, std::regex("^ +"), "");
-                    std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
-                    try {
-                        auto [err_code, machine_state] = execute_gcode_file(filename, machine);
-                        std::cout << "EXECUTE_FINISHED: " << err_code << "; MACHINE_STATE:";
-                        for (auto [k, v] : std::move(machine_state))
-                            std::cout << " " << k << "=" << v;
-                        std::cout << std::endl;
-                    } catch (const std::invalid_argument& e) {
-                        std::cerr << "cought invalid_argument: " << e.what() << std::endl;
+                    if (execute_promise.valid()) {
+                        std::cout << "task is currently executing..." << std::endl;
+                    } else {
+                        cancel_execution = false;
+                        execute_promise = std::async([&, filename]() {
+                            low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
+                            std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
+                            try {
+                                auto [err_code, machine_state] = execute_gcode_file(filename, machine, cancel_execution);
+                                std::cout << "EXECUTE_FINISHED: " << err_code << "; MACHINE_STATE:";
+                                for (auto [k, v] : machine_state)
+                                    std::cout << " " << k << "=" << v;
+                                std::cout << std::endl;
+                                return machine_state;
+                            } catch (const std::invalid_argument& e) {
+                                std::cerr << "cought invalid_argument: " << e.what() << std::endl;
+                                throw e;
+                            }
+                        });
                     }
+                } else if (command == "stop") {
+                    cancel_execution = true;
+                    machine.stepping->terminate(1000);
                 } else if (command == "q") {
                     std::cout << "quit" << std::endl;
+                } else if (command == "status") {
+                    if (execute_promise.valid() && (execute_promise.wait_for(10ms) != std::future_status::ready)) {
+                        std::cout << "STATUS: running" << std::endl;
+                    } else {
+                        std::cout << "STATUS: idle" << std::endl;
+                        for (auto [k, v] : machine_status_after_exec)
+                            std::cout << "STATUS_ELEMENT: " << k << "=" << v << std::endl;
+                    }
                 } else {
                     std::cout << "Unknown command: " << command << std::endl;
                     std::cout << "Valid commands are:" << std::endl;
