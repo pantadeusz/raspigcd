@@ -149,11 +149,6 @@ partitioned_program_t preprocess_program_parts(partitioned_program_t program_par
         }
     }
 
-    //if (save_to_files_list.size() > 0) {
-    //    std::cout << "SAVING prepared_program without DP FILE TO: " << (save_to_files_list.front()+".stage3") << std::endl;
-    //    std::fstream f (save_to_files_list.front()+".stage3", std::fstream::out);
-    //    f << back_to_gcode(group_gcode_commands(prepared_program)) << std::endl;
-    //}
     prepared_program = optimize_path_douglas_peucker(prepared_program, cfg.douglas_peucker_marigin);
     program_parts = group_gcode_commands(remove_duplicate_blocks(prepared_program, {}));
     machine_state = {{'F', 0.5}};
@@ -550,7 +545,6 @@ int main(int argc, char** argv)
     cfg.load_defaults();
 
     bool raw_gcode = false; // should I push G commands directly, without adaptation to machine
-    std::list<std::string> save_to_files_list;
 
 
     auto execute_gcode_file = [&](const auto filename, const auto& machine, std::atomic<bool>& cancel_execution) {
@@ -576,20 +570,13 @@ int main(int argc, char** argv)
 
         block_t machine_state = {{'F', 0.5}};
         if (!raw_gcode) {
-            std::cerr << "preprocessing gcode" << std::endl;
+            std::cerr << "PREPROCESSING GCODE" << std::endl;
             program_parts = insert_additional_nodes_inbetween(program_parts, machine_state, cfg);
             //std::cout << back_to_gcode(program_parts) << std::endl;
             program_parts = preprocess_program_parts(program_parts, cfg);
         } // if prepare paths
 
         std::cout << "STARTING...." << std::endl;
-
-        if (save_to_files_list.size() > 0) {
-            std::cout << "SAVING PREPROCESSED FILE TO: " << save_to_files_list.front() << std::endl;
-            std::fstream f(save_to_files_list.front(), std::fstream::out);
-            save_to_files_list.pop_front();
-            f << back_to_gcode(program_parts) << std::endl;
-        }
 
         return execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg, cancel_execution);
     };
@@ -602,9 +589,6 @@ int main(int argc, char** argv)
             cfg.load(args.at(i));
         } else if (args.at(i) == "-C") {
             std::cout << cfg << std::endl;
-        } else if (args.at(i) == "-s") {
-            i++;
-            save_to_files_list.push_back(args.at(i));
         } else if (args.at(i) == "--raw") {
             raw_gcode = true;
         } else if (args.at(i) == "-f") {
