@@ -111,9 +111,9 @@ void help_text(const std::vector<std::string>& args)
 }
 
 
-partitioned_program_t preprocess_program_parts(partitioned_program_t program_parts, const configuration::global& cfg)
+partitioned_program_t preprocess_program_parts(partitioned_program_t program_parts, const configuration::global& cfg, block_t machine_state)
 {
-    block_t machine_state = {{'F', *std::min_element(cfg.max_no_accel_velocity_mm_s.begin(), cfg.max_no_accel_velocity_mm_s.end())}};
+    
     program_t prepared_program;
 
     for (auto& ppart : program_parts) {
@@ -151,7 +151,6 @@ partitioned_program_t preprocess_program_parts(partitioned_program_t program_par
 
     prepared_program = optimize_path_douglas_peucker(prepared_program, cfg.douglas_peucker_marigin);
     program_parts = group_gcode_commands(remove_duplicate_blocks(prepared_program, {}));
-    machine_state = {{'F', 0.5}};
     return program_parts;
 }
 
@@ -403,6 +402,7 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
     std::atomic<bool>& cancel_execution,
     block_t machine_state_0)
 {
+    machine.steppers_drv->set_steps(machine.motor_layout_->cartesian_to_steps(block_to_distance_t(machine_state_0)));
     fifo_c<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps;
 
     std::atomic<bool> paused{false};
@@ -477,14 +477,11 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                         } catch (const raspigcd::hardware::execution_terminated& et) {
                             machine.spindles_drv->spindle_pwm_power(0, 0.0);
                             //                            machine.steppers_drv->enable_steppers({false,false,false,false});
+                            //std::cerr << "TERMINATED at " << currstate << std::endl;
                             auto currstate = block_to_distance_with_v_t(machine_state);
-                            auto ddp = machine.motor_layout_->steps_to_cartesian(et.delta_steps);
-                            for (int i = 0; i < 3; i++)
-                                currstate[i] += ddp[i];
-                            currstate[3] = 0.001;
-                            std::cerr << "TERMINATED at " << currstate << std::endl;
-                            machine_state = distance_with_velocity_to_block(currstate);
-                            return {-2, machine_state};
+                            auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+                            for (unsigned i = 0; i < end_pos.size();i++)currstate[i] = end_pos[i];
+                            return {-2, distance_with_velocity_to_block(currstate)};
                         }
                     } break;
                     case 28: {
@@ -589,9 +586,9 @@ int main(int argc, char** argv)
         //            std::cout << "PRORGRAM RAW: \n" << back_to_gcode({program}) << std::endl;
         program = enrich_gcode_with_feedrate_commands(std::move(program), cfg);
         //            std::cout << back_to_gcode({program}) << std::endl;
-        //program = remove_g92_from_gcode(program);
+        // program = remove_g92_from_gcode(program);
         if (!raw_gcode) {
-            program = optimize_path_douglas_peucker(program, cfg.douglas_peucker_marigin);
+            program = optimize_path_douglas_peucker(program, cfg.douglas_peucker_marigin,machine_state_0);
         }
         auto program_parts = group_gcode_commands(std::move(program));
 
@@ -600,7 +597,8 @@ int main(int argc, char** argv)
             std::cerr << "PREPROCESSING GCODE" << std::endl;
             program_parts = insert_additional_nodes_inbetween(program_parts, machine_state, cfg);
             //std::cout << back_to_gcode(program_parts) << std::endl;
-            program_parts = preprocess_program_parts(program_parts, cfg);
+            machine_state['F'] = *std::min_element(cfg.max_no_accel_velocity_mm_s.begin(), cfg.max_no_accel_velocity_mm_s.end());
+            program_parts = preprocess_program_parts(program_parts, cfg,machine_state);
         } // if prepare paths
 
         std::cout << "STARTING...." << std::endl;
