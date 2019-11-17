@@ -278,25 +278,6 @@ raspberry_pi_3::~raspberry_pi_3()
 
 void raspberry_pi_3::do_step(const std::array<single_step_command, 4>& b)
 {
-    /*
-    unsigned int step_clear = (1 << steppers[0].step) |
-                              (1 << steppers[1].step) |
-                              (1 << steppers[2].step); // | (1 << steppers[3].step);
-    // step direction
-    unsigned int dir_set =
-        (b[0].dir << steppers[0].dir) |
-        (b[1].dir << steppers[1].dir) |
-        (b[2].dir << steppers[2].dir); // | (b[3].dir << steppers[3].dir);
-    unsigned int dir_clear = ((1 - b[0].dir) << steppers[0].dir) |
-                             ((1 - b[1].dir) << steppers[1].dir) |
-                             ((1 - b[2].dir) << steppers[2].dir); // |
-                                                                  //                             ((1 - b[3].dir) << steppers[3].dir);
-    // shoud do step?
-    unsigned int step_set =
-        (b[0].step << steppers[0].step) |
-        (b[1].step << steppers[1].step) |
-        (b[2].step << steppers[2].step); // | (b[3].step << steppers[3].step);
-*/
     unsigned int step_clear = 0;
     // step direction
     unsigned int dir_set = 0;
@@ -331,11 +312,20 @@ void raspberry_pi_3::do_step(const std::array<single_step_command, 4>& b)
     }
     // clear all step pins
     GPIO_CLR = step_clear;
-    {
-        volatile int delayloop = 20;
-        while (delayloop--)
-            ;
+    //{
+    //    volatile int delayloop = 20;
+    //    while (delayloop--)
+    //        ;
+    //}
+
+    int lsteps_counter[5] = {steps_counter[0], steps_counter[1], steps_counter[2], steps_counter[3], 0};
+    for (std::size_t i = 0; i < steppers.size(); i++) {
+        const auto& bs = b[i];
+        lsteps_counter[i] += (((int)bs.dir) << 1)*(int)bs.step - 1;
+        lsteps_counter[4] = lsteps_counter[4] + lsteps_counter[i];
     }
+    for (std::size_t i = 0; i < 5; i++)
+        steps_counter[i] = lsteps_counter[i];
 }
 
 void raspberry_pi_3::enable_steppers(const std::vector<bool> en)
@@ -351,6 +341,38 @@ void raspberry_pi_3::enable_steppers(const std::vector<bool> en)
     }
 }
 
+/**
+     * @brief Get the steps counters for every stepper motor
+     * 
+     * @return std::vector<long int> number of steps for each motor
+     */
+steps_t raspberry_pi_3::get_steps() const
+{
+    while (true) {
+    int lsteps_counter[5] = {steps_counter[0], steps_counter[1], steps_counter[2], steps_counter[3], 0};
+    int chksum = 0;
+    for (std::size_t i = 0; i < steppers.size(); i++) {
+        chksum = chksum + lsteps_counter[i];
+    }
+    if (chksum == lsteps_counter[4]) return {lsteps_counter[0],lsteps_counter[1],lsteps_counter[2],lsteps_counter[3]};
+    std::this_thread::yield();
+    }
+}
+
+/**
+     * @brief Set the steps counters
+     * 
+     * @param steps_count number of steps to reset to
+     */
+void raspberry_pi_3::set_steps(const steps_t steps_count__)
+{
+    int lsteps_counter[5] = {steps_count__[0], steps_count__[1], steps_count__[2], steps_count__[3], 0};
+    for (std::size_t i = 0; i < steppers.size(); i++) {
+        lsteps_counter[4] = lsteps_counter[4] + lsteps_counter[i];
+    }
+    for (std::size_t i = 0; i < 5; i++)
+        steps_counter[i] = lsteps_counter[i];
+}
 
 void raspberry_pi_3::spindle_pwm_power(const int i, const double pwr0)
 {

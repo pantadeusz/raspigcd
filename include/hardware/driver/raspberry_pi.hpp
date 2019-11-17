@@ -82,6 +82,7 @@ private:
 
     struct bcm2835_peripheral gpio;
 
+    int steps_counter[5]; // steps counter. The last value is checksum.
 
 public:
     /**
@@ -115,6 +116,19 @@ public:
 	 * @return raspberry_pi_3&  returns this object
 	 */
     void enable_steppers(const std::vector<bool> en);
+    /**
+     * @brief Get the steps counters for every stepper motor
+     * 
+     * @return std::vector<long int> number of steps for each motor
+     */
+    virtual steps_t get_steps() const;
+
+    /**
+     * @brief Set the steps counters
+     * 
+     * @param steps_count number of steps to reset to
+     */
+    virtual void set_steps(const steps_t steps_count);
 
     /**
 	 * @brief Set the spindle pwm power

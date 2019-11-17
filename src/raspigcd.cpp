@@ -326,8 +326,6 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
                                             std::atomic<bool>& cancel_execution,
                                             configuration::global cfg,
                                             block_t machine_state) -> int { // calculate multisteps
-    
-
     std::map<int, double> spindles_status;
 
     for (std::size_t command_block_index = 0; (command_block_index < program_parts.size()) && (!cancel_execution); command_block_index++) {
@@ -398,10 +396,12 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
 };
 
 
-std::pair<int, block_t> execute_command_parts(partitioned_program_t program_parts, 
-execution_objects_t machine, 
-converters::program_to_steps_f_t program_to_steps, 
-configuration::global cfg, std::atomic<bool>& cancel_execution,block_t machine_state_0)
+std::pair<int, block_t> execute_command_parts(partitioned_program_t program_parts,
+    execution_objects_t machine,
+    converters::program_to_steps_f_t program_to_steps,
+    configuration::global cfg,
+    std::atomic<bool>& cancel_execution,
+    block_t machine_state_0)
 {
     fifo_c<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps;
 
@@ -504,6 +504,22 @@ configuration::global cfg, std::atomic<bool>& cancel_execution,block_t machine_s
                     } break;
                     case 92: {
                         auto [m_commands, machine_state] = calculated_multisteps.get(cancel_execution);
+                        auto position_from_steps = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+                        for (auto pelem : ppart) {
+                            if ((int)(pelem.count('X'))) {
+                                position_from_steps[0] = pelem['X'];
+                            }
+                            if ((int)(pelem.count('Y'))) {
+                                position_from_steps[1] = pelem['Y'];
+                            }
+                            if ((int)(pelem.count('Z'))) {
+                                position_from_steps[2] = pelem['Z'];
+                            }
+                        }
+                        machine.steppers_drv->set_steps(machine.motor_layout_->cartesian_to_steps(position_from_steps));
+                        machine_state['X'] = position_from_steps[0];
+                        machine_state['Y'] = position_from_steps[1];
+                        machine_state['Z'] = position_from_steps[2];
                         machine_state_ret = machine_state;
                     } break;
                     }
@@ -579,7 +595,7 @@ int main(int argc, char** argv)
         }
         auto program_parts = group_gcode_commands(std::move(program));
 
-        block_t machine_state = machine_state_0;//{{'F', 0.5}};
+        block_t machine_state = machine_state_0; //{{'F', 0.5}};
         if (!raw_gcode) {
             std::cerr << "PREPROCESSING GCODE" << std::endl;
             program_parts = insert_additional_nodes_inbetween(program_parts, machine_state, cfg);
@@ -589,7 +605,7 @@ int main(int argc, char** argv)
 
         std::cout << "STARTING...." << std::endl;
 
-        return execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg, cancel_execution,machine_state_0);
+        return execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg, cancel_execution, machine_state_0);
     };
 
     for (unsigned i = 1; i < args.size(); i++) {
@@ -654,11 +670,19 @@ int main(int argc, char** argv)
                         execute_promise = std::async([&, filename]() {
                             low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
                             std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
-                            auto [err_code, machine_state] = execute_gcode_file(filename, machine, cancel_execution,machine_status_after_exec);
+                            auto [err_code, machine_state] = execute_gcode_file(filename, machine, cancel_execution, machine_status_after_exec);
                             std::cout << "EXECUTE_FINISHED: " << err_code << "; MACHINE_STATE:";
                             for (auto [k, v] : machine_state)
                                 std::cout << " " << k << "=" << v;
                             std::cout << std::endl;
+                            auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+                            for (auto v : end_pos) {
+                                std::cout << " :: " << v;
+                            }
+                            std::cout << std::endl;
+                            machine_state['X'] = end_pos[0];
+                            machine_state['Y'] = end_pos[1];
+                            machine_state['Z'] = end_pos[2];
                             return machine_state;
                         });
                     }
