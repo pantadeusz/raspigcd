@@ -323,7 +323,7 @@ void raspberry_pi_3::do_step(const std::array<single_step_command, 4>& b)
     int lsteps_counter[5] = {steps_counter[0], steps_counter[1], steps_counter[2], steps_counter[3], 0};
     for (std::size_t i = 0; i < steppers.size(); i++) {
         const auto& bs = b[i];
-        lsteps_counter[i] += (((int)bs.dir) << 1)*(int)bs.step - 1;
+        lsteps_counter[i] += ((((int)bs.dir) << 1) - 1)*(int)bs.step;
         lsteps_counter[4] = lsteps_counter[4] + lsteps_counter[i];
     }
     for (std::size_t i = 0; i < 5; i++)

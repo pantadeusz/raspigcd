@@ -403,6 +403,7 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
     block_t machine_state_0)
 {
     machine.steppers_drv->set_steps(machine.motor_layout_->cartesian_to_steps(block_to_distance_t(machine_state_0)));
+    std::cout << "execute_command_parts: starting with steps counters: " << machine.steppers_drv->get_steps() << std::endl;
     fifo_c<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps;
 
     std::atomic<bool> paused{false};
@@ -481,6 +482,7 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                             auto currstate = block_to_distance_with_v_t(machine_state);
                             auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
                             for (unsigned i = 0; i < end_pos.size();i++)currstate[i] = end_pos[i];
+                            std::cout << "execute_command_parts: finished with steps counters: " << machine.steppers_drv->get_steps() << std::endl;
                             return {-2, distance_with_velocity_to_block(currstate)};
                         }
                     } break;
@@ -556,6 +558,7 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                 }
             }
         }
+        std::cout << "execute_command_parts: finished with steps counters: " << machine.steppers_drv->get_steps() << std::endl;
         return {multistep_calculation_promise.get(), machine_state_ret};
     }
 };
