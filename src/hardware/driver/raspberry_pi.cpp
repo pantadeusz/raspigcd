@@ -243,13 +243,10 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 
 void raspberry_pi_3::on_key(int btn, std::function<void(int, int)> callback_)
 {
-    //std::cout << "set onkey callback" << std::endl;
     buttons_callbacks[btn] = callback_;
-    //std::cout << "                    ok" << std::endl;
 }
 std::function<void(int, int)> raspberry_pi_3::on_key(int btn)
 {
-    //std::cout << "get onkey callback" << std::endl;
     try {
         return buttons_callbacks.at(btn);
     } catch (...) {
@@ -264,17 +261,12 @@ std::vector<int> raspberry_pi_3::keys_state()
 
 raspberry_pi_3::~raspberry_pi_3()
 {
-    std::cerr << "raspberry_pi_3::~raspberry_pi_3()..." << std::endl;
     _threads_alive = false;
-    //_btn_thread.join();
-    //for (auto& t : _spindle_threads)
-    //    t.join();
     _btn_thread.get();
     for (auto& t : _spindle_threads)
         t.join(); //get();
     munmap((void*)gpio.addr, BLOCK_SIZE);
     close(gpio.mem_fd);
-    std::cerr << "raspberry_pi_3::~raspberry_pi_3()..." << std::endl;
 }
 
 

@@ -113,7 +113,6 @@ void help_text(const std::vector<std::string>& args)
 
 partitioned_program_t preprocess_program_parts(partitioned_program_t program_parts, const configuration::global& cfg, block_t machine_state)
 {
-    
     program_t prepared_program;
 
     for (auto& ppart : program_parts) {
@@ -481,8 +480,8 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                             //std::cerr << "TERMINATED at " << currstate << std::endl;
                             auto currstate = block_to_distance_with_v_t(machine_state);
                             auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
-                            for (unsigned i = 0; i < end_pos.size();i++)currstate[i] = end_pos[i];
-                            std::cout << "execute_command_parts: finished with steps counters: " << machine.steppers_drv->get_steps() << std::endl;
+                            for (unsigned i = 0; i < end_pos.size(); i++)
+                                currstate[i] = end_pos[i];
                             return {-2, distance_with_velocity_to_block(currstate)};
                         }
                     } break;
@@ -558,11 +557,48 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                 }
             }
         }
-        std::cout << "execute_command_parts: finished with steps counters: " << machine.steppers_drv->get_steps() << std::endl;
         return {multistep_calculation_promise.get(), machine_state_ret};
     }
 };
 
+
+auto execute_gcode_text = [](const configuration::global cfg, const bool raw_gcode, const auto gcode_text, const auto& machine, std::atomic<bool>& cancel_execution, block_t machine_state_0 = {{'F', 0.5}}) {
+    converters::program_to_steps_f_t program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
+
+    auto program = gcode_to_maps_of_arguments(gcode_text);
+    //            std::cout << "PRORGRAM RAW: \n" << back_to_gcode({program}) << std::endl;
+    program = enrich_gcode_with_feedrate_commands(std::move(program), cfg);
+    //            std::cout << back_to_gcode({program}) << std::endl;
+    // program = remove_g92_from_gcode(program);
+    if (!raw_gcode) {
+        program = optimize_path_douglas_peucker(program, cfg.douglas_peucker_marigin, machine_state_0);
+    }
+    auto program_parts = group_gcode_commands(std::move(program));
+
+    block_t machine_state = machine_state_0; //{{'F', 0.5}};
+    if (!raw_gcode) {
+        std::cerr << "PREPROCESSING GCODE" << std::endl;
+        program_parts = insert_additional_nodes_inbetween(program_parts, machine_state, cfg);
+        //std::cout << back_to_gcode(program_parts) << std::endl;
+        machine_state['F'] = *std::min_element(cfg.max_no_accel_velocity_mm_s.begin(), cfg.max_no_accel_velocity_mm_s.end());
+        program_parts = preprocess_program_parts(program_parts, cfg, machine_state);
+    } // if prepare paths
+
+    std::cout << "STARTING...." << std::endl;
+
+    return execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg, cancel_execution, machine_state_0);
+};
+
+auto execute_gcode_file = [](const configuration::global cfg, const bool raw_gcode, const auto filename, const auto& machine, std::atomic<bool>& cancel_execution, block_t machine_state_0 = {{'F', 0.5}}) {
+    using namespace raspigcd;
+    using namespace raspigcd::hardware;
+
+    std::ifstream gcd_file(filename);
+    if (!gcd_file.is_open()) throw std::invalid_argument("could not open file \"" + filename + "\"");
+    std::string gcode_text((std::istreambuf_iterator<char>(gcd_file)),
+        std::istreambuf_iterator<char>());
+    return execute_gcode_text(cfg, raw_gcode, gcode_text, machine, cancel_execution, machine_state_0);
+};
 
 int main(int argc, char** argv)
 {
@@ -572,43 +608,6 @@ int main(int argc, char** argv)
     cfg.load_defaults();
 
     bool raw_gcode = false; // should I push G commands directly, without adaptation to machine
-
-
-    auto execute_gcode_file = [&](const auto filename, const auto& machine, std::atomic<bool>& cancel_execution, block_t machine_state_0 = {{'F', 0.5}}) {
-        using namespace raspigcd;
-        using namespace raspigcd::hardware;
-
-        converters::program_to_steps_f_t program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
-
-        std::ifstream gcd_file(filename);
-        if (!gcd_file.is_open()) throw std::invalid_argument("could not open file \"" + filename + "\"");
-        std::string gcode_text((std::istreambuf_iterator<char>(gcd_file)),
-            std::istreambuf_iterator<char>());
-
-        auto program = gcode_to_maps_of_arguments(gcode_text);
-        //            std::cout << "PRORGRAM RAW: \n" << back_to_gcode({program}) << std::endl;
-        program = enrich_gcode_with_feedrate_commands(std::move(program), cfg);
-        //            std::cout << back_to_gcode({program}) << std::endl;
-        // program = remove_g92_from_gcode(program);
-        if (!raw_gcode) {
-            program = optimize_path_douglas_peucker(program, cfg.douglas_peucker_marigin,machine_state_0);
-        }
-        auto program_parts = group_gcode_commands(std::move(program));
-
-        block_t machine_state = machine_state_0; //{{'F', 0.5}};
-        if (!raw_gcode) {
-            std::cerr << "PREPROCESSING GCODE" << std::endl;
-            program_parts = insert_additional_nodes_inbetween(program_parts, machine_state, cfg);
-            //std::cout << back_to_gcode(program_parts) << std::endl;
-            machine_state['F'] = *std::min_element(cfg.max_no_accel_velocity_mm_s.begin(), cfg.max_no_accel_velocity_mm_s.end());
-            program_parts = preprocess_program_parts(program_parts, cfg,machine_state);
-        } // if prepare paths
-
-        std::cout << "STARTING...." << std::endl;
-
-        return execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg, cancel_execution, machine_state_0);
-    };
-
     for (unsigned i = 1; i < args.size(); i++) {
         if ((args.at(i) == "-h") || (args.at(i) == "--help")) {
             help_text(args);
@@ -623,7 +622,7 @@ int main(int argc, char** argv)
             i++;
             auto machine = stepping_simple_timer_factory(cfg);
             std::atomic<bool> cancel_execution = false;
-            execute_gcode_file(args.at(i), machine, cancel_execution);
+            execute_gcode_file(cfg, raw_gcode, args.at(i), machine, cancel_execution);
         } else if (args.at(i) == "--configtest") {
             using namespace raspigcd;
             using namespace raspigcd::hardware;
@@ -671,16 +670,9 @@ int main(int argc, char** argv)
                         execute_promise = std::async([&, filename]() {
                             low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
                             std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
-                            auto [err_code, machine_state] = execute_gcode_file(filename, machine, cancel_execution, machine_status_after_exec);
-                            std::cout << "EXECUTE_FINISHED: " << err_code << "; MACHINE_STATE:";
-                            for (auto [k, v] : machine_state)
-                                std::cout << " " << k << "=" << v;
-                            std::cout << std::endl;
+                            auto [err_code, machine_state] = execute_gcode_file(cfg, raw_gcode, filename, machine, cancel_execution, machine_status_after_exec);
+                            std::cout << "EXECUTE_FINISHED: \"" << filename << "\"" << std::endl;
                             auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
-                            for (auto v : end_pos) {
-                                std::cout << " :: " << v;
-                            }
-                            std::cout << std::endl;
                             machine_state['X'] = end_pos[0];
                             machine_state['Y'] = end_pos[1];
                             machine_state['Z'] = end_pos[2];
@@ -696,7 +688,25 @@ int main(int argc, char** argv)
                         std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
                     }
                     // TODO: go to base
-                    //machine.steppers_drv->enable_steppers({false,false,false,false});
+                        cancel_execution = false;
+                        execute_promise = std::async([&]() {
+                            low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
+                            auto [err_code, machine_state] = execute_gcode_text(cfg, raw_gcode, "G0Z10\nG0X0Y0\nG0Z0\n", machine, cancel_execution, machine_status_after_exec);
+                            auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+                            machine_state['X'] = end_pos[0];
+                            machine_state['Y'] = end_pos[1];
+                            machine_state['Z'] = end_pos[2];
+                            return machine_state;
+                        });
+                    machine.steppers_drv->enable_steppers({false,false,false,false});
+                } else if (command == "terminate") {
+                    cancel_execution = true;
+                    machine.stepping->terminate(1000);
+                    try {
+                        machine_status_after_exec = execute_promise.get();
+                    } catch (const std::invalid_argument& e) {
+                        std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
+                    }
                 } else if (command == "q") {
                 } else if (command == "status") {
                     if (execute_promise.valid() && (execute_promise.wait_for(10ms) != std::future_status::ready)) {
@@ -712,7 +722,8 @@ int main(int argc, char** argv)
                     std::cout << "INFO:  q                     -> quit" << std::endl;
                     std::cout << "INFO:  execute [filename]    -> execute gcode" << std::endl;
                     std::cout << "INFO:  status                -> get status and last position" << std::endl;
-                    std::cout << "INFO:  stop                  -> terminate current execution" << std::endl;
+                    std::cout << "INFO:  stop                  -> stop and go to origin" << std::endl;
+                    std::cout << "INFO:  terminate             -> terminate current execution" << std::endl;
                 }
             } while (command != "q");
         }
