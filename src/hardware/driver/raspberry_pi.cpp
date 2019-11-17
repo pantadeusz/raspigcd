@@ -79,6 +79,8 @@ void set_gpio_mode_x(struct bcm2835_peripheral& gpio_, int gpio, int fsel)
 
 raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
 {
+    for (std::size_t i = 0; i < 5; i++)
+        steps_counter[i] = 0;
     std::map<int, std::string> pins_taken;
     auto pins_taken_check = [&pins_taken](int p, std::string desc) {
         if (pins_taken.count(p)) throw std::invalid_argument(std::string("pin ") + std::to_string(p) + " already taken by " + pins_taken[p]);
@@ -349,12 +351,14 @@ void raspberry_pi_3::enable_steppers(const std::vector<bool> en)
 steps_t raspberry_pi_3::get_steps() const
 {
     while (true) {
-    int lsteps_counter[5] = {steps_counter[0], steps_counter[1], steps_counter[2], steps_counter[3], 0};
+    int lsteps_counter[5] = {steps_counter[0], steps_counter[1], steps_counter[2], steps_counter[3], steps_counter[4]};
     int chksum = 0;
     for (std::size_t i = 0; i < steppers.size(); i++) {
         chksum = chksum + lsteps_counter[i];
     }
-    if (chksum == lsteps_counter[4]) return {lsteps_counter[0],lsteps_counter[1],lsteps_counter[2],lsteps_counter[3]};
+    if (chksum == lsteps_counter[4]) {
+        return {lsteps_counter[0],lsteps_counter[1],lsteps_counter[2],lsteps_counter[3]};
+    }
     std::this_thread::yield();
     }
 }
