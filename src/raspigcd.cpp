@@ -684,6 +684,7 @@ int main(int argc, char** argv)
                     std::getline(std::cin, gcdcommand);
                     gcdcommand = std::regex_replace(gcdcommand, std::regex("^ +"), "");
                     gcdcommand = std::regex_replace(gcdcommand, std::regex("[\\\\][n]"), "\n");
+                    std::cerr << gcdcommand;
                     if (execute_promise.valid()) {
                         std::cout << "task is currently executing..." << std::endl;
                     } else {
@@ -695,8 +696,10 @@ int main(int argc, char** argv)
                             machine_state['X'] = end_pos[0];
                             machine_state['Y'] = end_pos[1];
                             machine_state['Z'] = end_pos[2];
-                            if (err_code == 0) std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
-                            else std::cout << "EXECUTE_DONE_ERROR: " << end_pos << std::endl;
+                            if (err_code == 0)
+                                std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
+                            else
+                                std::cout << "EXECUTE_DONE_ERROR: " << end_pos << std::endl;
 
                             return machine_state;
                         });
@@ -711,18 +714,20 @@ int main(int argc, char** argv)
                     }
                     // TODO: go to base
                     cancel_execution = false;
-                    execute_promise = std::async([&]() {
-                        low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
-                        auto [err_code, machine_state] = execute_gcode_text(cfg, raw_gcode, "G0Z10\nG0X0Y0\nG0Z0\n", machine, cancel_execution, machine_status_after_exec);
-                        auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
-                        machine_state['X'] = end_pos[0];
-                        machine_state['Y'] = end_pos[1];
-                        machine_state['Z'] = end_pos[2];
-                            if (err_code == 0) std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
-                            else std::cout << "EXECUTE_DONE_ERROR: " << end_pos << std::endl;
-                        return machine_state;
-                    });
+                    low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
+                    auto [err_code, machine_state] = execute_gcode_text(cfg, raw_gcode, "G0Z10\nG0X0Y0\nG0Z0\n", machine, cancel_execution, machine_status_after_exec);
+                    auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+                    machine_status_after_exec = machine_state;
+                    machine_status_after_exec['X'] = end_pos[0];
+                    machine_status_after_exec['Y'] = end_pos[1];
+                    machine_status_after_exec['Z'] = end_pos[2];
+                    if (err_code == 0)
+                        std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
+                    else
+                        std::cout << "EXECUTE_DONE_ERROR: " << end_pos << std::endl;
+
                     machine.steppers_drv->enable_steppers({false, false, false, false});
+                    std::cout << "STOPPED: " << end_pos << std::endl;
                 } else if (command == "terminate") {
                     cancel_execution = true;
                     machine.stepping->terminate(1000);
@@ -731,6 +736,8 @@ int main(int argc, char** argv)
                     } catch (const std::invalid_argument& e) {
                         std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
                     }
+                    auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+                    std::cout << "TERMINATED: " << end_pos << std::endl;
                 } else if (command == "q") {
                 } else if (command == "status") {
                     auto end_steps = machine.steppers_drv->get_steps();
@@ -738,17 +745,14 @@ int main(int argc, char** argv)
                     std::cout << "STEPS: ";
                     for (auto v : end_steps)
                         std::cout << v << " ";
-                    std::cout << std::endl
-                              << "POSITION_FROM_STEPS: ";
-                    for (auto v : end_pos)
-                        std::cout << v << " ";
-                    std::cout << std::endl;
                     if (execute_promise.valid() && (execute_promise.wait_for(10ms) != std::future_status::ready)) {
-                        std::cout << "STATUS: running" << std::endl;
+                        std::cout << "STATUS: " << end_pos << " running" << std::endl;
                     } else {
-                        std::cout << "STATUS: idle" << std::endl;
+                        std::cout << "STATUS_ELEMENT: ";
                         for (auto [k, v] : machine_status_after_exec)
-                            std::cout << "STATUS_ELEMENT: " << k << "=" << v << std::endl;
+                            std::cout << " " << k << "=" << v;
+                        std::cout << std::endl;
+                        std::cout << "STATUS: " << end_pos << " idle" << std::endl;
                     }
                 } else {
                     std::cout << "UNKNOWN_COMMAND: " << command << std::endl;
