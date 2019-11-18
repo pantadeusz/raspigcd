@@ -675,6 +675,7 @@ int main(int argc, char** argv)
                             machine_state['X'] = end_pos[0];
                             machine_state['Y'] = end_pos[1];
                             machine_state['Z'] = end_pos[2];
+                            std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
                             return machine_state;
                         });
                     }
@@ -682,7 +683,7 @@ int main(int argc, char** argv)
                     std::string gcdcommand;
                     std::getline(std::cin, gcdcommand);
                     gcdcommand = std::regex_replace(gcdcommand, std::regex("^ +"), "");
-                    gcdcommand = std::regex_replace(gcdcommand, std::regex("[\\][n]"), "\n");
+                    gcdcommand = std::regex_replace(gcdcommand, std::regex("[\\\\][n]"), "\n");
                     if (execute_promise.valid()) {
                         std::cout << "task is currently executing..." << std::endl;
                     } else {
@@ -694,6 +695,9 @@ int main(int argc, char** argv)
                             machine_state['X'] = end_pos[0];
                             machine_state['Y'] = end_pos[1];
                             machine_state['Z'] = end_pos[2];
+                            if (err_code == 0) std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
+                            else std::cout << "EXECUTE_DONE_ERROR: " << end_pos << std::endl;
+
                             return machine_state;
                         });
                     }
@@ -714,6 +718,8 @@ int main(int argc, char** argv)
                         machine_state['X'] = end_pos[0];
                         machine_state['Y'] = end_pos[1];
                         machine_state['Z'] = end_pos[2];
+                            if (err_code == 0) std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
+                            else std::cout << "EXECUTE_DONE_ERROR: " << end_pos << std::endl;
                         return machine_state;
                     });
                     machine.steppers_drv->enable_steppers({false, false, false, false});
