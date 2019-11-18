@@ -48,7 +48,7 @@ void inmem::do_step(const std::array<single_step_command,4> &b)
         }
     }
     for (size_t j = 0; j < current_steps.size(); j++)
-        current_steps[j] = current_steps[j] + (int)((signed char)b[j].step * ((signed char)b[j].dir * 2 - 1));
+        current_steps[j] += (int)((signed char)b[j].step * ((signed char)b[j].dir * 2 - 1));
     _on_step(current_steps);
 };
 

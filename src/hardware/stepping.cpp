@@ -149,13 +149,15 @@ void stepping_simple_timer::exec(const std::vector<multistep_command>& commands_
                     }
                 }
                 if ((_terminate_execution == 1) && (termination_procedure_ddt < 0)) {
-                    if (on_execution_break(hardware_commands_to_last_position_after_given_steps(commands_to_do, _tick_index),_tick_index)) {
+                    //if (on_execution_break(hardware_commands_to_last_position_after_given_steps(commands_to_do, _tick_index),_tick_index)) {
+                    if (on_execution_break(_steppers_driver->get_steps(),_tick_index)) {
                         termination_procedure_ddt = 1;
                         _terminate_execution = 1;
                         prev_timer = _low_timer->start_timing();
                     } else {
                     throw execution_terminated(
-                        hardware_commands_to_last_position_after_given_steps(commands_to_do, _tick_index)
+                        //hardware_commands_to_last_position_after_given_steps(commands_to_do, _tick_index)
+                        _steppers_driver->get_steps()
                     );}
                 } else {
                     _terminate_execution += termination_procedure_ddt;

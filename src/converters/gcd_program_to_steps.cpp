@@ -313,7 +313,7 @@ hardware::multistep_commands_t linear_interpolation_to_steps(
     distances.shrink_to_fit();
     //distances = optimize_path_dp(distances, std::max(arc_length * 0.5, 0.01));
     // remove nodes that are touching each other (by using its average coordinate)
-    distances = [&distances, &arc_length]() {
+   /* distances = [&distances, &arc_length]() {
         std::vector<distance_with_velocity_t> ret;
         ret.reserve(distances.size());
         distance_with_velocity_t* prev = nullptr;
@@ -333,7 +333,7 @@ hardware::multistep_commands_t linear_interpolation_to_steps(
         }
         ret.shrink_to_fit();
         return ret;
-    }();
+    }(); */
 
     state = initial_state_;
     distance_with_velocity_t pp0 = distances.front();
@@ -363,6 +363,21 @@ hardware::multistep_commands_t linear_interpolation_to_steps(
     },
         dt, 0.025
 );
+/*{
+    auto position = distances.back();
+distance_t dest_pos = {position[0], position[1], position[2], position[3]};
+            multistep_commands_t steps_todo;
+
+            pos_to_steps = ml_.cartesian_to_steps(dest_pos);
+            chase_steps(steps_todo, pos_from_steps, pos_to_steps);
+            smart_append(result, steps_todo);
+            //result.insert(result.end(), steps_todo.begin(), steps_todo.end());
+            if (result.size() > 1024 * 1024 * 64) {
+                std::cerr << "bezier_spline_program_to_steps: problem in generating steps - the size is too big: " << result.size() << "; p: " << position << std::endl;
+                throw std::invalid_argument("bezier_spline_program_to_steps: problem in generating steps - the size is too big");
+            }
+            pos_from_steps = pos_to_steps;
+}*/
     //return collapse_repeated_steps(result);
     result.shrink_to_fit();
     return result; //std::vector<multistep_command> (result.begin(), result.end());

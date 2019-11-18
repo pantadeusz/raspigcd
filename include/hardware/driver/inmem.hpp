@@ -46,16 +46,28 @@ namespace driver {
 class inmem : public hardware::low_steppers
 {
     std::function<void(const steps_t&)> _on_step;
+
 public:
-    std::array<int,4> counters;
+    std::array<int, 4> counters;
     std::vector<bool> enabled;
     steps_t current_steps;
 
-    void do_step(const std::array<single_step_command,4> &b);
-    
+    void do_step(const std::array<single_step_command, 4>& b);
+
     void enable_steppers(const std::vector<bool> en);
-    
+
     std::function<void(const std::vector<bool>)> on_enable_steppers;
+
+    steps_t get_steps() const
+    {
+        return {counters[0],counters[1],counters[2],counters[3]};
+    }
+
+    void set_steps(const steps_t steps_count)
+    {
+        for (unsigned i = 0; i < std::min(steps_count.size(), counters.size()); i++)
+            counters[i] = steps_count[i];
+    }
 
     /**
      * @brief allows for setting callback that monitors steps execution

@@ -18,9 +18,6 @@
 */
 
 
-
-
-
 #include <hardware/motor_layout.hpp>
 
 namespace raspigcd {
@@ -42,19 +39,25 @@ steps_t corexy_layout_t::cartesian_to_steps(const distance_t& distances_)
     return {
         (int)((distances_[0] * scales_[0] + distances_[1] * scales_[1]) * steps_per_milimeter_[0]),
         (int)((distances_[0] * scales_[0] - distances_[1] * scales_[1]) * steps_per_milimeter_[1]),
-        (int)(distances_[2] * steps_per_milimeter_[2] * scales_[2])};
+        (int)(distances_[2] * steps_per_milimeter_[2] * scales_[2]), 0};
 }
 
 distance_t corexy_layout_t::steps_to_cartesian(const steps_t& steps_)
 {
-    return {
-        0.5 * (double)(steps_[0] / steps_per_milimeter_[0] + steps_[1] / steps_per_milimeter_[1]) / scales_[0],
-        0.5 * (double)(steps_[0] / steps_per_milimeter_[0] - steps_[1] / steps_per_milimeter_[1]) / scales_[1],
-        steps_[2] / (steps_per_milimeter_[2] * scales_[2])};
+    distance_t ret;
+    ret[0] = 0.5 * (double)(steps_[0] / steps_per_milimeter_[0] + steps_[1] / steps_per_milimeter_[1]) / scales_[0];
+    ret[1] = 0.5 * (double)(steps_[0] / steps_per_milimeter_[0] - steps_[1] / steps_per_milimeter_[1]) / scales_[1];
+    ret[2] = steps_[2] / (steps_per_milimeter_[2] * scales_[2]);
+    ret[3] = steps_[3] / (steps_per_milimeter_[3] * scales_[3]);
+    return ret;
 }
 
 void corexy_layout_t::set_configuration(const configuration::actuators_organization& cfg)
 {
+    for (int i = 0; i < steps_per_milimeter_.size(); i++)
+        steps_per_milimeter_[i] = 1;
+    for (int i = 0; i < scales_.size(); i++)
+        scales_[i] = 1;
     for (unsigned int i = 0; i < cfg.steppers.size(); i++) {
         steps_per_milimeter_[i] = cfg.steppers.at(i).steps_per_mm;
         scales_[i] = cfg.scale[i];
@@ -76,20 +79,26 @@ public:
 steps_t cartesian_layout_t::cartesian_to_steps(const distance_t& distances_)
 {
     steps_t ret;
-    for (std::size_t i = 0; i < distances_.size(); i++) ret[i] = distances_[i] * steps_per_milimeter_[i] * scales_[i];
+    for (std::size_t i = 0; i < distances_.size(); i++)
+        ret[i] = distances_[i] * steps_per_milimeter_[i] * scales_[i];
     return ret;
 }
 
 distance_t cartesian_layout_t::steps_to_cartesian(const steps_t& steps_)
 {
     distance_t ret;
-    for (std::size_t i = 0; i < steps_.size(); i++) ret[i] = steps_[i] / (steps_per_milimeter_[i] * scales_[i]);
+    for (std::size_t i = 0; i < steps_.size(); i++)
+        ret[i] = steps_[i] / (steps_per_milimeter_[i] * scales_[i]);
     return ret;
 }
 
 
 void cartesian_layout_t::set_configuration(const configuration::actuators_organization& cfg)
 {
+    for (int i = 0; i < steps_per_milimeter_.size(); i++)
+        steps_per_milimeter_[i] = 1;
+    for (int i = 0; i < scales_.size(); i++)
+        scales_[i] = 1;
     for (unsigned int i = 0; i < cfg.steppers.size(); i++) {
         steps_per_milimeter_[i] = cfg.steppers.at(i).steps_per_mm;
         scales_[i] = cfg.scale[i];

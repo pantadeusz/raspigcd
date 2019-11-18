@@ -23,13 +23,19 @@
 
 #include <configuration.hpp>
 #include <hardware/stepping_commands.hpp>
-
+#include <steps_t.hpp>
 #include <vector>
 
 namespace raspigcd {
 namespace hardware {
 
 
+/**
+ * @brief the interface for hardware steppers manipulation.
+ * 
+ * The maximal number of supported stepper motors is 4. This is the tradeoff between many motors vs most use cases.
+ * 
+ */
 class low_steppers
 {
 private:
@@ -49,6 +55,21 @@ public:
      * @return raspberry_pi_3&  returns this object
      */
     virtual void enable_steppers(const std::vector<bool> en) = 0;
+
+    /**
+     * @brief Get the steps counters for every stepper motor
+     * 
+     * @return std::vector<long int> number of steps for each motor
+     */
+    virtual steps_t get_steps() const = 0;
+
+    /**
+     * @brief Set the steps counters
+     * 
+     * @param steps_count number of steps to reset to
+     */
+    virtual void set_steps(const steps_t steps_count) = 0;
+
 };
 
 } // namespace hardware
