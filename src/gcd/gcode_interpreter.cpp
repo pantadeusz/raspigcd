@@ -219,7 +219,7 @@ program_t remove_duplicate_blocks(const program_t& program_states, const block_t
         initial_state);
     for (auto s : program_states) {
         if (s.count('M') == 0) {
-            if (s.count('G') && ((s.at('G') == 0) || (s.at('G') == 1) || (s.at('G') == 92))) {
+            if (s.count('G') && ((s.at('G') == 0) || (s.at('G') == 1))) {
                 auto new_state = merge_blocks(current_state, s);
                 if (!((blocks_to_vector_move(new_state, current_state).length() == 0) &&
                         (new_state['F'] == current_state['F']))) {

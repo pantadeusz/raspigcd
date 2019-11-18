@@ -130,6 +130,7 @@ partitioned_program_t preprocess_program_parts(partitioned_program_t program_par
                 case 28:
                 case 92:
                     prepared_program.insert(prepared_program.end(), ppart.begin(), ppart.end());
+                    machine_state = merge_blocks(machine_state,ppart.front());
                     break;
                 }
             } else {
@@ -579,13 +580,13 @@ auto execute_gcode_text = [](const configuration::global cfg, const bool raw_gco
     if (!raw_gcode) {
         std::cerr << "PREPROCESSING GCODE" << std::endl;
         program_parts = insert_additional_nodes_inbetween(program_parts, machine_state, cfg);
-        //std::cout << back_to_gcode(program_parts) << std::endl;
+        //std::cerr << back_to_gcode(program_parts) << std::endl;
         machine_state['F'] = *std::min_element(cfg.max_no_accel_velocity_mm_s.begin(), cfg.max_no_accel_velocity_mm_s.end());
         program_parts = preprocess_program_parts(program_parts, cfg, machine_state);
-        //std::cout << back_to_gcode(program_parts) << std::endl;
+        //std::cerr << back_to_gcode(program_parts) << std::endl;
     } // if prepare paths
 
-    std::cout << "STARTING...." << std::endl;
+    //std::cerr << "STARTING...." << std::endl;
 
     return execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg, cancel_execution, machine_state_0);
 };
