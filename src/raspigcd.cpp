@@ -582,6 +582,7 @@ auto execute_gcode_text = [](const configuration::global cfg, const bool raw_gco
         //std::cout << back_to_gcode(program_parts) << std::endl;
         machine_state['F'] = *std::min_element(cfg.max_no_accel_velocity_mm_s.begin(), cfg.max_no_accel_velocity_mm_s.end());
         program_parts = preprocess_program_parts(program_parts, cfg, machine_state);
+        //std::cout << back_to_gcode(program_parts) << std::endl;
     } // if prepare paths
 
     std::cout << "STARTING...." << std::endl;
@@ -688,17 +689,17 @@ int main(int argc, char** argv)
                         std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
                     }
                     // TODO: go to base
-                        cancel_execution = false;
-                        execute_promise = std::async([&]() {
-                            low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
-                            auto [err_code, machine_state] = execute_gcode_text(cfg, raw_gcode, "G0Z10\nG0X0Y0\nG0Z0\n", machine, cancel_execution, machine_status_after_exec);
-                            auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
-                            machine_state['X'] = end_pos[0];
-                            machine_state['Y'] = end_pos[1];
-                            machine_state['Z'] = end_pos[2];
-                            return machine_state;
-                        });
-                    machine.steppers_drv->enable_steppers({false,false,false,false});
+                    cancel_execution = false;
+                    execute_promise = std::async([&]() {
+                        low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
+                        auto [err_code, machine_state] = execute_gcode_text(cfg, raw_gcode, "G0Z10\nG0X0Y0\nG0Z0\n", machine, cancel_execution, machine_status_after_exec);
+                        auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+                        machine_state['X'] = end_pos[0];
+                        machine_state['Y'] = end_pos[1];
+                        machine_state['Z'] = end_pos[2];
+                        return machine_state;
+                    });
+                    machine.steppers_drv->enable_steppers({false, false, false, false});
                 } else if (command == "terminate") {
                     cancel_execution = true;
                     machine.stepping->terminate(1000);
@@ -709,6 +710,14 @@ int main(int argc, char** argv)
                     }
                 } else if (command == "q") {
                 } else if (command == "status") {
+                    auto end_steps = machine.steppers_drv->get_steps();
+                    auto end_pos = machine.motor_layout_->steps_to_cartesian(end_steps);
+                    for (auto v : end_steps)
+                        std::cout << v << " ";
+                    std::cout << std::endl;
+                    for (auto v : end_pos)
+                        std::cout << v << " ";
+                    std::cout << std::endl;
                     if (execute_promise.valid() && (execute_promise.wait_for(10ms) != std::future_status::ready)) {
                         std::cout << "STATUS: running" << std::endl;
                     } else {
