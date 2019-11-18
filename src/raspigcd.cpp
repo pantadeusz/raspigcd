@@ -651,13 +651,11 @@ int main(int argc, char** argv)
             do {
                 using namespace std::chrono_literals;
                 std::cin >> command;
-                if (execute_promise.valid()) {
-                    if (execute_promise.wait_for(10ms) == std::future_status::ready) {
-                        try {
-                            machine_status_after_exec = execute_promise.get();
-                        } catch (const std::invalid_argument& e) {
-                            std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
-                        }
+                if (execute_promise.valid() && (execute_promise.wait_for(10ms) == std::future_status::ready)) {
+                    try {
+                        machine_status_after_exec = execute_promise.get();
+                    } catch (const std::invalid_argument& e) {
+                        std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
                     }
                 }
                 if ((command == "execute") || (command == "exec")) {
@@ -673,6 +671,25 @@ int main(int argc, char** argv)
                             std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
                             auto [err_code, machine_state] = execute_gcode_file(cfg, raw_gcode, filename, machine, cancel_execution, machine_status_after_exec);
                             std::cout << "EXECUTE_FINISHED: \"" << filename << "\"" << std::endl;
+                            auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+                            machine_state['X'] = end_pos[0];
+                            machine_state['Y'] = end_pos[1];
+                            machine_state['Z'] = end_pos[2];
+                            return machine_state;
+                        });
+                    }
+                } else if (command == "go") {
+                    std::string gcdcommand;
+                    std::getline(std::cin, gcdcommand);
+                    gcdcommand = std::regex_replace(gcdcommand, std::regex("^ +"), "");
+                    gcdcommand = std::regex_replace(gcdcommand, std::regex("[\\][n]"), "\n");
+                    if (execute_promise.valid()) {
+                        std::cout << "task is currently executing..." << std::endl;
+                    } else {
+                        cancel_execution = false;
+                        execute_promise = std::async([&, gcdcommand]() {
+                            low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
+                            auto [err_code, machine_state] = execute_gcode_text(cfg, raw_gcode, gcdcommand + "\n", machine, cancel_execution, machine_status_after_exec);
                             auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
                             machine_state['X'] = end_pos[0];
                             machine_state['Y'] = end_pos[1];
@@ -712,9 +729,11 @@ int main(int argc, char** argv)
                 } else if (command == "status") {
                     auto end_steps = machine.steppers_drv->get_steps();
                     auto end_pos = machine.motor_layout_->steps_to_cartesian(end_steps);
+                    std::cout << "STEPS: ";
                     for (auto v : end_steps)
                         std::cout << v << " ";
-                    std::cout << std::endl;
+                    std::cout << std::endl
+                              << "POSITION_FROM_STEPS: ";
                     for (auto v : end_pos)
                         std::cout << v << " ";
                     std::cout << std::endl;
