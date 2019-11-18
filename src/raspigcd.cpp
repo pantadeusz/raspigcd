@@ -748,7 +748,8 @@ int main(int argc, char** argv)
                     std::cout << "UNKNOWN_COMMAND: " << command << std::endl;
                     std::cout << "INFO: Valid commands are:" << std::endl;
                     std::cout << "INFO:  q                     -> quit" << std::endl;
-                    std::cout << "INFO:  execute [filename]    -> execute gcode" << std::endl;
+                    std::cout << "INFO:  go [g-code]           -> execute gcode command" << std::endl;
+                    std::cout << "INFO:  execute [filename]    -> execute gcode file" << std::endl;
                     std::cout << "INFO:  status                -> get status and last position" << std::endl;
                     std::cout << "INFO:  stop                  -> stop and go to origin" << std::endl;
                     std::cout << "INFO:  terminate             -> terminate current execution" << std::endl;
