@@ -130,7 +130,7 @@ partitioned_program_t preprocess_program_parts(partitioned_program_t program_par
                 case 28:
                 case 92:
                     prepared_program.insert(prepared_program.end(), ppart.begin(), ppart.end());
-                    machine_state = merge_blocks(machine_state,ppart.front());
+                    machine_state = merge_blocks(machine_state, ppart.front());
                     break;
                 }
             } else {
@@ -456,6 +456,16 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
         std::map<int, double> spindles_status;
         long int last_spindle_on_delay = 7000;
 
+        auto wait_for_component_to_start = [](auto m, int t = 3000) {
+            if (m.count('P') == 1) {
+                t = m.at('P');
+            } else if (m.count('X') == 1) {
+                t = 1000 * m.at('X');
+            }
+            if (t > 0)
+                std::this_thread::sleep_for(std::chrono::milliseconds((int)t));
+            return t;
+        };
         for (std::size_t command_block_index = 0; (command_block_index < program_parts.size()) && (!cancel_execution); command_block_index++) {
             auto& ppart = program_parts[command_block_index];
 
@@ -523,16 +533,6 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                     } break;
                     }
                 } else {
-                    auto wait_for_component_to_start = [](auto m, int t = 3000) {
-                        if (m.count('P') == 1) {
-                            t = m.at('P');
-                        } else if (m.count('X') == 1) {
-                            t = 1000 * m.at('X');
-                        }
-                        if (t > 0)
-                            std::this_thread::sleep_for(std::chrono::milliseconds((int)t));
-                        return t;
-                    };
                     for (auto& m : ppart) {
                         switch ((int)(m.at('M'))) {
                         case 17:
@@ -545,12 +545,16 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                             break;
                         case 3:
                             spindles_status[0] = 1.0;
-                            machine.spindles_drv->spindle_pwm_power(0, spindles_status[0]);
+                            if (cfg.spindles.at(0).mode != configuration::spindle_modes::LASER) {
+                                machine.spindles_drv->spindle_pwm_power(0, spindles_status[0]);
+                            }
                             last_spindle_on_delay = wait_for_component_to_start(m, 3000);
                             break;
                         case 5:
                             spindles_status[0] = 0.0;
-                            machine.spindles_drv->spindle_pwm_power(0, spindles_status[0]);
+                            if (cfg.spindles.at(0).mode != configuration::spindle_modes::LASER) {
+                                machine.spindles_drv->spindle_pwm_power(0, spindles_status[0]);
+                            }
                             wait_for_component_to_start(m, 3000);
                             break;
                         }
