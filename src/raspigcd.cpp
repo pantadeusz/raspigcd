@@ -689,7 +689,7 @@ int main(int argc, char** argv)
                     std::getline(std::cin, gcdcommand);
                     gcdcommand = std::regex_replace(gcdcommand, std::regex("^ +"), "");
                     gcdcommand = std::regex_replace(gcdcommand, std::regex("[\\\\][n]"), "\n");
-                    std::cerr << gcdcommand;
+                    //std::cerr << gcdcommand;
                     if (execute_promise.valid()) {
                         std::cout << "task is currently executing..." << std::endl;
                     } else {
