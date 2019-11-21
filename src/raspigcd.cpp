@@ -595,6 +595,10 @@ auto execute_gcode_text = [](const configuration::global cfg, const bool raw_gco
     return execute_command_parts(std::move(program_parts), machine, program_to_steps, cfg, cancel_execution, machine_state_0);
 };
 
+/**
+ * @brief execute the gcode file for the given machine, with the given starting point and for the specific configuration.
+ * 
+ */
 auto execute_gcode_file = [](const configuration::global cfg, const bool raw_gcode, const auto filename, const auto& machine, std::atomic<bool>& cancel_execution, block_t machine_state_0 = {{'F', 0.5}}) {
     using namespace raspigcd;
     using namespace raspigcd::hardware;
@@ -604,6 +608,222 @@ auto execute_gcode_file = [](const configuration::global cfg, const bool raw_gco
     std::string gcode_text((std::istreambuf_iterator<char>(gcd_file)),
         std::istreambuf_iterator<char>());
     return execute_gcode_text(cfg, raw_gcode, gcode_text, machine, cancel_execution, machine_state_0);
+};
+
+
+double fake_execution_and_statistics_collect(configuration::global cfg, std::function<void(execution_objects_t& machine)> work_on_machine_f)
+{
+    double execution_seconds = 0;
+
+    auto steppers_drv = std::make_shared<driver::inmem>();
+    auto spindles_drv = std::make_shared<raspigcd::hardware::driver::low_spindles_pwm_fake>([](const int s_i, const double p_i) {});
+    auto buttons_drv = std::make_shared<driver::low_buttons_fake>(10);
+
+    std::shared_ptr<motor_layout> motor_layout_ = motor_layout::get_instance(cfg);
+    motor_layout_->set_configuration(cfg);
+    auto timer_drv = std::make_shared<hardware::driver::low_timers_fake>();
+    timer_drv->on_wait_s = [&execution_seconds](double dt) {
+        execution_seconds += (double)0.000001 * (double)dt;
+    };
+    std::shared_ptr<stepping_simple_timer> stepping = std::make_shared<stepping_simple_timer>(cfg, steppers_drv, timer_drv);
+
+    execution_objects_t machine = {
+        timer_drv,
+        steppers_drv,
+        spindles_drv,
+        buttons_drv,
+        motor_layout_,
+        stepping};
+
+    timer_drv->start_timing();
+    work_on_machine_f(machine);
+
+    return execution_seconds;
+}
+
+
+auto interactive_mode_execution = [](const auto cfg, const auto raw_gcode) {
+    using namespace raspigcd;
+    using namespace raspigcd::hardware;
+
+    auto machine = stepping_simple_timer_factory(cfg);
+
+    converters::program_to_steps_f_t program_to_steps;
+    program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
+
+
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE, [](int k, int v) { std::cout << "PAUSE     " << k << "  value=" << v << std::endl; });
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, [](int k, int v) { std::cout << "TERMINATE " << k << "  value=" << v << std::endl; });
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](int k, int v) { std::cout << "ENDSTOP_X " << k << "  value=" << v << std::endl; });
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](int k, int v) { std::cout << "ENDSTOP_Y " << k << "  value=" << v << std::endl; });
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](int k, int v) { std::cout << "ENDSTOP_Z " << k << "  value=" << v << std::endl; });
+
+
+    std::cout << "type 'q' to quit" << std::endl;
+    std::string command;
+    std::future<block_t> execute_promise;
+    block_t machine_status_after_exec = {{'F', 0.5}};
+    std::atomic<bool> cancel_execution = false;
+
+    do {
+        using namespace std::chrono_literals;
+        std::cin >> command;
+        if (execute_promise.valid() && (execute_promise.wait_for(10ms) == std::future_status::ready)) {
+            try {
+                machine_status_after_exec = execute_promise.get();
+            } catch (const std::invalid_argument& e) {
+                std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
+            }
+        }
+        if ((command == "execute") || (command == "exec")) {
+            std::string filename;
+            std::getline(std::cin, filename);
+            filename = std::regex_replace(filename, std::regex("^ +"), "");
+            if (execute_promise.valid()) {
+                std::cout << "task is currently executing..." << std::endl;
+            } else {
+                cancel_execution = false;
+                execute_promise = std::async([&, filename]() {
+                    low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
+                    std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
+                    auto [err_code, machine_state] = execute_gcode_file(cfg, raw_gcode, filename, machine, cancel_execution, machine_status_after_exec);
+                    std::cout << "EXECUTE_FINISHED: \"" << filename << "\"" << std::endl;
+                    auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+                    machine_state['X'] = end_pos[0];
+                    machine_state['Y'] = end_pos[1];
+                    machine_state['Z'] = end_pos[2];
+                    std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
+                    return machine_state;
+                });
+            }
+        } else if ((command == "sim_execute") || (command == "sim_exec")) {
+            std::string filename;
+            std::getline(std::cin, filename);
+            filename = std::regex_replace(filename, std::regex("^ +"), "");
+            if (execute_promise.valid()) {
+                std::cout << "task is currently executing..." << std::endl;
+            } else {
+                cancel_execution = false;
+                try {
+                    double executio_time = fake_execution_and_statistics_collect(cfg, [&](execution_objects_t& machine) {
+                        auto [err_code, machine_state] = execute_gcode_file(cfg, raw_gcode, filename, machine, cancel_execution, machine_status_after_exec);
+                        if (err_code != 0) std::cerr << "ERROR_AFTER_EXECUTION: " << err_code << std::endl;
+                    });
+                    std::cout << "SIM_EXEC_TIME: " << executio_time << std::endl;
+                } catch (std::exception& e) {
+                    std::cout << "SIM_EXEC_TIME: "
+                              << "ERROR: " << e.what() << std::endl;
+                }
+            }
+        } else if (command == "sim_go") {
+            std::string gcdcommand;
+            std::getline(std::cin, gcdcommand);
+            gcdcommand = std::regex_replace(gcdcommand, std::regex("^ +"), "");
+            gcdcommand = std::regex_replace(gcdcommand, std::regex("[\\\\][n]"), "\n");
+            //std::cerr << gcdcommand;
+            if (execute_promise.valid()) {
+                std::cout << "task is currently executing..." << std::endl;
+            } else {
+                cancel_execution = false;
+                try {
+                    double executio_time = fake_execution_and_statistics_collect(cfg, [&](execution_objects_t& machine) {
+                        auto [err_code, machine_state] = execute_gcode_text(cfg, raw_gcode, gcdcommand + "\n", machine, cancel_execution, machine_status_after_exec);
+                        if (err_code != 0) std::cerr << "ERROR_AFTER_EXECUTION: " << err_code << std::endl;
+                    });
+                    std::cout << "SIM_GO_TIME: " << executio_time << std::endl;
+                } catch (std::exception& e) {
+                    std::cout << "SIM_GO_TIME: "
+                              << "ERROR: " << e.what() << std::endl;
+                }
+            }
+        } else if (command == "go") {
+            std::string gcdcommand;
+            std::getline(std::cin, gcdcommand);
+            gcdcommand = std::regex_replace(gcdcommand, std::regex("^ +"), "");
+            gcdcommand = std::regex_replace(gcdcommand, std::regex("[\\\\][n]"), "\n");
+            //std::cerr << gcdcommand;
+            if (execute_promise.valid()) {
+                std::cout << "task is currently executing..." << std::endl;
+            } else {
+                cancel_execution = false;
+                execute_promise = std::async([&, gcdcommand]() {
+                    low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
+                    auto [err_code, machine_state] = execute_gcode_text(cfg, raw_gcode, gcdcommand + "\n", machine, cancel_execution, machine_status_after_exec);
+                    auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+                    machine_state['X'] = end_pos[0];
+                    machine_state['Y'] = end_pos[1];
+                    machine_state['Z'] = end_pos[2];
+                    if (err_code == 0)
+                        std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
+                    else
+                        std::cout << "EXECUTE_DONE_ERROR: " << end_pos << std::endl;
+
+                    return machine_state;
+                });
+            }
+        } else if (command == "stop") {
+            cancel_execution = true;
+            machine.stepping->terminate(1000);
+            try {
+                machine_status_after_exec = execute_promise.get();
+            } catch (const std::invalid_argument& e) {
+                std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
+            }
+            // TODO: go to base
+            cancel_execution = false;
+            low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
+            auto [err_code, machine_state] = execute_gcode_text(cfg, raw_gcode, "G0Z10\nG0X0Y0\nG0Z0\n", machine, cancel_execution, machine_status_after_exec);
+            auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+            machine_status_after_exec = machine_state;
+            machine_status_after_exec['X'] = end_pos[0];
+            machine_status_after_exec['Y'] = end_pos[1];
+            machine_status_after_exec['Z'] = end_pos[2];
+            if (err_code == 0)
+                std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
+            else
+                std::cout << "EXECUTE_DONE_ERROR: " << end_pos << std::endl;
+
+            machine.steppers_drv->enable_steppers({false, false, false, false});
+            std::cout << "STOPPED: " << end_pos << std::endl;
+        } else if (command == "terminate") {
+            cancel_execution = true;
+            machine.stepping->terminate(1000);
+            try {
+                machine_status_after_exec = execute_promise.get();
+            } catch (const std::invalid_argument& e) {
+                std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
+            }
+            auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+            std::cout << "TERMINATED: " << end_pos << std::endl;
+        } else if (command == "q") {
+        } else if (command == "status") {
+            auto end_steps = machine.steppers_drv->get_steps();
+            auto end_pos = machine.motor_layout_->steps_to_cartesian(end_steps);
+            std::cout << "STEPS: ";
+            for (auto v : end_steps)
+                std::cout << v << " ";
+            if (execute_promise.valid() && (execute_promise.wait_for(10ms) != std::future_status::ready)) {
+                std::cout << "STATUS: " << end_pos << " running" << std::endl;
+            } else {
+                std::cout << "STATUS_ELEMENT: ";
+                for (auto [k, v] : machine_status_after_exec)
+                    std::cout << " " << k << "=" << v;
+                std::cout << std::endl;
+                std::cout << "STATUS: " << end_pos << " idle" << std::endl;
+            }
+        } else {
+            std::cout << "UNKNOWN_COMMAND: " << command << std::endl;
+            std::cout << "INFO: Valid commands are:" << std::endl;
+            std::cout << "INFO:  q                     -> quit" << std::endl;
+            std::cout << "INFO:  go [g-code]           -> execute gcode command" << std::endl;
+            std::cout << "INFO:  exec [filename]       -> execute gcode file" << std::endl;
+            std::cout << "INFO:  sim_go [g-code]       -> simulate execution of gcode command" << std::endl;
+            std::cout << "INFO:  sim_exec [filename]   -> simulate execution of gcode file" << std::endl;
+            std::cout << "INFO:  status                -> get status and last position" << std::endl;
+            std::cout << "INFO:  stop                  -> stop and go to origin" << std::endl;
+            std::cout << "INFO:  terminate             -> terminate current execution" << std::endl;
+        }
+    } while (command != "q");
 };
 
 int main(int argc, char** argv)
@@ -630,146 +850,8 @@ int main(int argc, char** argv)
             std::atomic<bool> cancel_execution = false;
             execute_gcode_file(cfg, raw_gcode, args.at(i), machine, cancel_execution);
         } else if (args.at(i) == "--configtest") {
-            using namespace raspigcd;
-            using namespace raspigcd::hardware;
-
-            auto machine = stepping_simple_timer_factory(cfg);
-
-            converters::program_to_steps_f_t program_to_steps;
-            program_to_steps = converters::program_to_steps_factory(cfg.steps_generator);
-
+            interactive_mode_execution(cfg, raw_gcode);
             i++;
-
-            machine.buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE, [](int k, int v) { std::cout << "PAUSE     " << k << "  value=" << v << std::endl; });
-            machine.buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, [](int k, int v) { std::cout << "TERMINATE " << k << "  value=" << v << std::endl; });
-            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](int k, int v) { std::cout << "ENDSTOP_X " << k << "  value=" << v << std::endl; });
-            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](int k, int v) { std::cout << "ENDSTOP_Y " << k << "  value=" << v << std::endl; });
-            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](int k, int v) { std::cout << "ENDSTOP_Z " << k << "  value=" << v << std::endl; });
-
-
-            std::cout << "type 'q' to quit" << std::endl;
-            std::string command;
-            std::future<block_t> execute_promise;
-            block_t machine_status_after_exec = {{'F', 0.5}};
-            std::atomic<bool> cancel_execution = false;
-
-            do {
-                using namespace std::chrono_literals;
-                std::cin >> command;
-                if (execute_promise.valid() && (execute_promise.wait_for(10ms) == std::future_status::ready)) {
-                    try {
-                        machine_status_after_exec = execute_promise.get();
-                    } catch (const std::invalid_argument& e) {
-                        std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
-                    }
-                }
-                if ((command == "execute") || (command == "exec")) {
-                    std::string filename;
-                    std::getline(std::cin, filename);
-                    filename = std::regex_replace(filename, std::regex("^ +"), "");
-                    if (execute_promise.valid()) {
-                        std::cout << "task is currently executing..." << std::endl;
-                    } else {
-                        cancel_execution = false;
-                        execute_promise = std::async([&, filename]() {
-                            low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
-                            std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
-                            auto [err_code, machine_state] = execute_gcode_file(cfg, raw_gcode, filename, machine, cancel_execution, machine_status_after_exec);
-                            std::cout << "EXECUTE_FINISHED: \"" << filename << "\"" << std::endl;
-                            auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
-                            machine_state['X'] = end_pos[0];
-                            machine_state['Y'] = end_pos[1];
-                            machine_state['Z'] = end_pos[2];
-                            std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
-                            return machine_state;
-                        });
-                    }
-                } else if (command == "go") {
-                    std::string gcdcommand;
-                    std::getline(std::cin, gcdcommand);
-                    gcdcommand = std::regex_replace(gcdcommand, std::regex("^ +"), "");
-                    gcdcommand = std::regex_replace(gcdcommand, std::regex("[\\\\][n]"), "\n");
-                    //std::cerr << gcdcommand;
-                    if (execute_promise.valid()) {
-                        std::cout << "task is currently executing..." << std::endl;
-                    } else {
-                        cancel_execution = false;
-                        execute_promise = std::async([&, gcdcommand]() {
-                            low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
-                            auto [err_code, machine_state] = execute_gcode_text(cfg, raw_gcode, gcdcommand + "\n", machine, cancel_execution, machine_status_after_exec);
-                            auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
-                            machine_state['X'] = end_pos[0];
-                            machine_state['Y'] = end_pos[1];
-                            machine_state['Z'] = end_pos[2];
-                            if (err_code == 0)
-                                std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
-                            else
-                                std::cout << "EXECUTE_DONE_ERROR: " << end_pos << std::endl;
-
-                            return machine_state;
-                        });
-                    }
-                } else if (command == "stop") {
-                    cancel_execution = true;
-                    machine.stepping->terminate(1000);
-                    try {
-                        machine_status_after_exec = execute_promise.get();
-                    } catch (const std::invalid_argument& e) {
-                        std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
-                    }
-                    // TODO: go to base
-                    cancel_execution = false;
-                    low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
-                    auto [err_code, machine_state] = execute_gcode_text(cfg, raw_gcode, "G0Z10\nG0X0Y0\nG0Z0\n", machine, cancel_execution, machine_status_after_exec);
-                    auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
-                    machine_status_after_exec = machine_state;
-                    machine_status_after_exec['X'] = end_pos[0];
-                    machine_status_after_exec['Y'] = end_pos[1];
-                    machine_status_after_exec['Z'] = end_pos[2];
-                    if (err_code == 0)
-                        std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
-                    else
-                        std::cout << "EXECUTE_DONE_ERROR: " << end_pos << std::endl;
-
-                    machine.steppers_drv->enable_steppers({false, false, false, false});
-                    std::cout << "STOPPED: " << end_pos << std::endl;
-                } else if (command == "terminate") {
-                    cancel_execution = true;
-                    machine.stepping->terminate(1000);
-                    try {
-                        machine_status_after_exec = execute_promise.get();
-                    } catch (const std::invalid_argument& e) {
-                        std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
-                    }
-                    auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
-                    std::cout << "TERMINATED: " << end_pos << std::endl;
-                } else if (command == "q") {
-                } else if (command == "status") {
-                    auto end_steps = machine.steppers_drv->get_steps();
-                    auto end_pos = machine.motor_layout_->steps_to_cartesian(end_steps);
-                    std::cout << "STEPS: ";
-                    for (auto v : end_steps)
-                        std::cout << v << " ";
-                    if (execute_promise.valid() && (execute_promise.wait_for(10ms) != std::future_status::ready)) {
-                        std::cout << "STATUS: " << end_pos << " running" << std::endl;
-                    } else {
-                        std::cout << "STATUS_ELEMENT: ";
-                        for (auto [k, v] : machine_status_after_exec)
-                            std::cout << " " << k << "=" << v;
-                        std::cout << std::endl;
-                        std::cout << "STATUS: " << end_pos << " idle" << std::endl;
-                    }
-                } else {
-                    std::cout << "UNKNOWN_COMMAND: " << command << std::endl;
-                    std::cout << "INFO: Valid commands are:" << std::endl;
-                    std::cout << "INFO:  q                     -> quit" << std::endl;
-                    std::cout << "INFO:  go [g-code]           -> execute gcode command" << std::endl;
-                    std::cout << "INFO:  execute [filename]    -> execute gcode file" << std::endl;
-                    std::cout << "INFO:  status                -> get status and last position" << std::endl;
-                    std::cout << "INFO:  stop                  -> stop and go to origin" << std::endl;
-                    std::cout << "INFO:  terminate             -> terminate current execution" << std::endl;
-                }
-            } while (command != "q");
         }
     }
 
