@@ -32,3 +32,7 @@ child.on('close', (code) => {
 child.stdin.write("go G0X100Y100\n");
 child.stdin.write("q\n");
 ```
+
+## Available commands
+
+You can see available commands in the interactive mode by writnig ```h``` and pressing ```<ENTER>```.
