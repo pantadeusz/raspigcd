@@ -56,7 +56,7 @@ make -j 2 gcd
 sudo ./gcd -c ../v4.json -f your_gcode_file.gcd
 ```
 
-More info: [BUILD.md](BUILD.md)
+More info: [doc/BUILD.md](doc/BUILD.md)
 
 ### Dependency - Catch2
 
