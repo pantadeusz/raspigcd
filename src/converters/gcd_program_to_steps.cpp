@@ -279,9 +279,6 @@ hardware::multistep_commands_t linear_interpolation_to_steps(
     const gcd::block_t initial_state_, // = {{'F',0}},
     std::function<void(const gcd::block_t)> finish_callback_f_)
 {
-    double arc_length = 0.5;
-
-
     using namespace raspigcd::hardware;
     using namespace raspigcd::gcd;
     using namespace raspigcd::movement::simple_steps;

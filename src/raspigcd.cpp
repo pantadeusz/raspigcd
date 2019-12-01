@@ -260,7 +260,7 @@ void home_position_find(char axis_id, converters::program_to_steps_f_t program_t
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](auto, auto) {});
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](auto, auto) {});
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](auto, auto) {});
-    machine.stepping->exec(backward_slow_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
+    machine.stepping->exec(backward_slow_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto /*tick_n*/) -> int {
         if (cancel_execution) {
             for (auto e : spindles_status) {
                 machine.spindles_drv->spindle_pwm_power(e.first, 0);
@@ -301,7 +301,7 @@ public:
         while (!cancel_execution) {
             while (lock.test_and_set(std::memory_order_acquire))
                 ;
-            if (data.size() < max_queue_size) {
+            if ((int)data.size() < (int)max_queue_size) {
                 data.push_back(value);
                 lock.clear(std::memory_order_release);
                 return;
@@ -616,7 +616,10 @@ double fake_execution_and_statistics_collect(configuration::global cfg, std::fun
     double execution_seconds = 0;
 
     auto steppers_drv = std::make_shared<driver::inmem>();
-    auto spindles_drv = std::make_shared<raspigcd::hardware::driver::low_spindles_pwm_fake>([](const int s_i, const double p_i) {});
+    auto spindles_drv = std::make_shared<raspigcd::hardware::driver::low_spindles_pwm_fake>(
+        [](const int /*s_i*/, const double /*p_i*/) {
+
+        });
     auto buttons_drv = std::make_shared<driver::low_buttons_fake>(10);
 
     std::shared_ptr<motor_layout> motor_layout_ = motor_layout::get_instance(cfg);

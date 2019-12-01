@@ -56,14 +56,20 @@ TEST_CASE( "Configuration handling", "[configuration]" ) {
     cfg_orig.max_no_accel_velocity_mm_s = {5.0,5.0,5.0,5.0};
     cfg_orig.motion_layout = configuration::motion_layouts::COREXY;
     cfg_orig.steppers = {stepper(27, 10, 22, 100.0),stepper(4, 10, 17, 100.0),stepper(9, 10, 11, 100.0),stepper(0, 10, 5, 100.0)};
-    cfg_orig.buttons = {{.pin = 21, .pullup = true}, {.pin = 20, .pullup = true}, {.pin = 16, .pullup = true}, {.pin = 12, .pullup = true}};
+    cfg_orig.buttons = {
+        {.pin = 21, .pullup = true, .invert = false},
+        {.pin = 20, .pullup = true, .invert = false},
+        {.pin = 16, .pullup = true, .invert = false},
+        {.pin = 12, .pullup = true, .invert = false}
+    };
     cfg_orig.spindles = {
         {
             .pin = 18,
             .cycle_time_seconds = 0.1,
             .duty_min = 0.0,
             .duty_max = 0.1,
-            .pin_negate = false
+            .pin_negate = false,
+            .mode = SPINDLE
         }
     };
 
