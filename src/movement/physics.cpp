@@ -87,7 +87,7 @@ double acceleration_between(const path_node_t &a, const path_node_t &b) {
     double a_min = -10000000.0, a_max= 10000000.0;
     
     #ifndef NDEBUG
-    double tt = 0;
+    //double tt = 0;
     #endif
     for (int n = 0; n < 82; n++) {
         double acc = (a_max + a_min)/2.0;
@@ -95,7 +95,7 @@ double acceleration_between(const path_node_t &a, const path_node_t &b) {
         if (acc != 0.0) {
             t = std::abs((b.v-a.v)/acc);
             #ifndef NDEBUG
-            tt = t;
+    //        tt = t;
             #endif
             double s1 = a.v * t + acc*t*t/2.0;
             //std::cout << "********s1 = " << s1 << " ?? " << s  << "  acc: " << acc << std::endl;

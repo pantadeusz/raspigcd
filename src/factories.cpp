@@ -264,14 +264,16 @@ class video_sdl
 {
 public:
     std::atomic<bool> active;
-    void set_spindle(double spindle_power_level_)
+    void set_spindle(double /*spindle_power_level_*/)
     {
     }
-    void set_steps(const steps_t& st)
+    void set_steps(const steps_t& /*st*/)
     {
     }
 
-    video_sdl(configuration::global* cfg_, driver::low_buttons_fake* buttons_drv, int width = 640, int height = 480)
+    video_sdl(configuration::global* /*cfg_*/, 
+              driver::low_buttons_fake* /*buttons_drv*/,
+              int /*width = 640*/, int /*height = 480*/)
     {
         active = true;
     }
