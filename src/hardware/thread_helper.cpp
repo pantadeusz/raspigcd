@@ -33,6 +33,7 @@ namespace hardware {
 void set_thread_realtime()
 {
     sched_param sch_params;
+    //std::cerr << sched_get_priority_min  (SCHED_RR) <<  " ====----==== " << sched_get_priority_max (SCHED_RR) << std::endl;  // 1 to 99
     sch_params.sched_priority = sched_get_priority_max(SCHED_RR);
     if (pthread_setschedparam(pthread_self(), SCHED_RR, &sch_params)) {
         static int already_warned = 0;
