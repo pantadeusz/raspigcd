@@ -19,6 +19,7 @@
 
 
 #include <hardware/driver/raspberry_pi.hpp>
+#include <hardware/thread_helper.hpp>
 
 #include <chrono>
 #include <cstring>
@@ -154,14 +155,7 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
         _spindle_threads.push_back(std::thread([this, sppwm, i]() {
             std::cout << "starting spindle " << i << " thread" << std::endl;
             double& _duty = _spindle_duties[i];
-            /* {
-                sched_param sch_params;
-                sch_params.sched_priority = sched_get_priority_max(SCHED_RR);
-
-                if (pthread_setschedparam(pthread_self(), SCHED_RR, &sch_params)) {
-                    std::cerr << "Warning: spindle_pi::configure - set realtime thread failed" << std::endl;
-                }
-            } */
+            set_thread_realtime();
             auto prevTime = std::chrono::steady_clock::now();
             while (_threads_alive) {
                 // 1
