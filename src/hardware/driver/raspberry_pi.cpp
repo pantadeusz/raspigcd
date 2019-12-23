@@ -154,17 +154,20 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
         spindle_pwm_power(i, 0.0);
         _spindle_threads.push_back(std::thread([this, sppwm, i]() {
             std::cout << "starting spindle " << i << " thread" << std::endl;
-            double& _duty = _spindle_duties[i];
+//            double& _duty = _spindle_duties[i];
             set_thread_realtime();
             auto prevTime = std::chrono::steady_clock::now();
             while (_threads_alive) {
+                const double _duty = _spindle_duties[i];
+                if ((_duty >= 0.0 ) && (_duty <= sppwm.cycle_time_seconds)) {
                 // 1
                 if (_duty >= 0.0) {
                     if (sppwm.pin_negate)
                         GPIO_CLR = 1 << sppwm.pin;
                     else
                         GPIO_SET = 1 << sppwm.pin;
-                    std::this_thread::sleep_until(prevTime + std::chrono::microseconds((int)(_duty * 1000000.0)));
+//                    std::this_thread::sleep_until(prevTime + std::chrono::microseconds((int)(_duty * 1000000.0)));
+                    std::this_thread::sleep_for(std::chrono::microseconds((int)(_duty * 1000000.0)));
                 }
                 if (_duty < sppwm.cycle_time_seconds) {
                     // 0
@@ -173,8 +176,10 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
                     else
                         GPIO_CLR = 1 << sppwm.pin;
                 }
-                prevTime = prevTime + std::chrono::microseconds((int)(sppwm.cycle_time_seconds * 1000000.0));
-                std::this_thread::sleep_until(prevTime);
+//                prevTime = prevTime + std::chrono::microseconds((int)(sppwm.cycle_time_seconds * 1000000.0));
+                std::this_thread::sleep_for(std::chrono::microseconds((int)((sppwm.cycle_time_seconds-_duty) * 1000000.0)));
+//                std::this_thread::sleep_until(prevTime);
+                }
             }
             std::cout << "finished spindle " << i << " thread" << std::endl;
         }));
