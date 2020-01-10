@@ -24,7 +24,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -frename-registers -funroll-loops
 add_definitions(-Wall)
 
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/thirdparty/distance_t.hpp")
-    file(DOWNLOAD "https://github.com/pantadeusz/distance_t/releases/download/0.1.0/distance_t.hpp" "${PROJECT_SOURCE_DIR}/thirdparty/distance_t.hpp")
+    file(DOWNLOAD "https://github.com/pantadeusz/distance_t/releases/download/0.1.1/distance_t.hpp" "${PROJECT_SOURCE_DIR}/thirdparty/distance_t.hpp")
 endif()
 
 install(DIRECTORY include/ DESTINATION include/raspigcd2

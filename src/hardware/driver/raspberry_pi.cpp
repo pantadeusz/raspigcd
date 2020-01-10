@@ -156,7 +156,7 @@ raspberry_pi_3::raspberry_pi_3(const configuration::global& configuration)
             std::cout << "starting spindle " << i << " thread" << std::endl;
 //            double& _duty = _spindle_duties[i];
             set_thread_realtime();
-            auto prevTime = std::chrono::steady_clock::now();
+            //auto prevTime = std::chrono::steady_clock::now();
             while (_threads_alive) {
                 const double _duty = _spindle_duties[i];
                 if ((_duty >= 0.0 ) && (_duty <= sppwm.cycle_time_seconds)) {

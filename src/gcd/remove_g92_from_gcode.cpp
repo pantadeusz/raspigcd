@@ -32,7 +32,7 @@ program_t remove_g92_from_gcode(const program_t& input_program_, block_t current
     program_t result;
     distance_t current_shift;
     for (auto e : input_program_) {
-        for (auto &[k,v]:e) {
+        for ([[maybe_unused]] auto &[k,v]:e) {
             v = ((int)(v * 1024.0));
             v = v/1024.0;
         }
