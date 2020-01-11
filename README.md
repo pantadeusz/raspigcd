@@ -122,11 +122,11 @@ If you are interested in different (non-exclusive) license, please contact me (a
 
 ## Contributing
 
-(this section will be cleared soon)
+(this section will be cleared)
 
 You can send pull requests and issues. The credits will be yours and the 
-version with merged changes will be on the same license (AGPL). As a 
-contributor you can ask me (pantadeusz) for different license for the 
-code (I don't promise I will give it). I will have the right to license the code 
-with contribution differently (like the RedHat does) for commercial 
-purposes - for example - with custom features.
+version with merged changes will be on the same license (AGPL) forever. As a 
+contributor you can ask me (pantadeusz) for a different license for the 
+code.
+I will have the right to license the code with contribution differently for commercial 
+purposes - for example - with custom features. Of course credits will be maintained. In this (hypothetical) case I will try to reach most active contributors to share some profit. Fortunately/unfortunately right now this is a one person show so the problem does not exist :)
