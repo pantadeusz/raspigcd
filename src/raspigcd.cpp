@@ -186,14 +186,13 @@ void home_position_find(char axis_id,
     converters::program_to_steps_f_t program_to_steps, 
     configuration::global cfg, 
     execution_objects_t machine, 
-    std::atomic<bool>& cancel_execution, 
-    std::atomic<bool>& paused, 
+    std::atomic<bool>& is_cancel_execution, 
+    std::atomic<bool>& is_paused, 
     long int last_spindle_on_delay, 
-    std::map<int, double>& spindles_status)
+    std::map<int, double>& spindles_status,
+    const double goto_default_speed = 50.0)
 {
     std::function<void(int, int)> on_stop_execution = [](int, int) {};
-
-    static double goto_default_speed = 50.0;
 
     std::map<char, std::tuple<double, double, double>> directions = {
         {'X', {(direction_value==0.0)?2000:direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[0]), std::min(goto_default_speed, cfg.max_velocity_mm_s[0])}},
@@ -222,13 +221,13 @@ void home_position_find(char axis_id,
             if (v == 1) {
                 going_to_origin = false;
                 machine.stepping->terminate(20);
-                std::cout << "hit endstop to origin..." << std::endl;
+                std::cout << "[II] hit endstop to origin..." << std::endl;
             }
         } else {
             if (v == 0) {
                 going_to_origin = true;
                 machine.stepping->terminate(100);
-                std::cout << "released endstop to origin..." << std::endl;
+                std::cout << "[II] released endstop to origin..." << std::endl;
             }
         }
     };
@@ -238,10 +237,10 @@ void home_position_find(char axis_id,
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, probe_actions);
 
     try {
-        machine.stepping->exec(forward_fast_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
-            std::cout << "terminated endstop at " << tick_n << std::endl;
+        machine.stepping->exec(forward_fast_commands, [machine, &is_cancel_execution, &is_paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
+            std::cout << "[II] terminated endstop at " << tick_n << std::endl;
             machine.timer_drv->wait_us(100000);
-            if (cancel_execution) {
+            if (is_cancel_execution) {
                 for (auto e : spindles_status) {
                     machine.spindles_drv->spindle_pwm_power(e.first, 0);
                 }
@@ -253,10 +252,10 @@ void home_position_find(char axis_id,
     machine.timer_drv->wait_us(250000);
     if (!going_to_origin) {
         try {
-            machine.stepping->exec(backward_slow_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
-                std::cout << "terminated endstop free at " << tick_n << std::endl;
+            machine.stepping->exec(backward_slow_commands, [machine, &is_cancel_execution, &is_paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
+                std::cout << "[II] terminated endstop free at " << tick_n << std::endl;
                 machine.timer_drv->wait_us(100000);
-                if (cancel_execution) {
+                if (is_cancel_execution) {
                     for (auto e : spindles_status) {
                         machine.spindles_drv->spindle_pwm_power(e.first, 0);
                     }
@@ -269,8 +268,8 @@ void home_position_find(char axis_id,
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](auto, auto) {});
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](auto, auto) {});
     machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](auto, auto) {});
-    machine.stepping->exec(backward_slow_commands, [machine, &cancel_execution, &paused, last_spindle_on_delay, &spindles_status](auto, auto /*tick_n*/) -> int {
-        if (cancel_execution) {
+    machine.stepping->exec(backward_slow_commands, [machine, &is_cancel_execution, &is_paused, last_spindle_on_delay, &spindles_status](auto, auto /*tick_n*/) -> int {
+        if (is_cancel_execution) {
             for (auto e : spindles_status) {
                 machine.spindles_drv->spindle_pwm_power(e.first, 0);
             }
@@ -511,17 +510,20 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                             if ((int)(pelem.count('X'))) {
                                 home_position_find('X',
                                 pelem['X'], 
-                                program_to_steps, cfg, machine, cancel_execution, paused, last_spindle_on_delay, spindles_status);
+                                program_to_steps, cfg, machine, cancel_execution, paused, 
+                                last_spindle_on_delay, spindles_status,pelem.count('F')?pelem['F']:50);
                             }
                             if ((int)(pelem.count('Y'))) {
                                 home_position_find('Y', 
                                 pelem['Y'],
-                                program_to_steps, cfg, machine, cancel_execution, paused, last_spindle_on_delay, spindles_status);
+                                program_to_steps, cfg, machine, cancel_execution, paused, 
+                                last_spindle_on_delay, spindles_status,pelem.count('F')?pelem['F']:50);
                             }
                             if ((int)(pelem.count('Z'))) {
                                 home_position_find('Z', 
                                 pelem['Z']
-                                ,program_to_steps, cfg, machine, cancel_execution, paused, last_spindle_on_delay, spindles_status);
+                                ,program_to_steps, cfg, machine, cancel_execution, paused, 
+                                last_spindle_on_delay, spindles_status,pelem.count('F')?pelem['F']:50);
                             }
                         }
                         machine_state_ret = machine_state;
