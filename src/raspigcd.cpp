@@ -190,17 +190,17 @@ void home_position_find(char axis_id,
     std::atomic<bool>& is_paused, 
     long int last_spindle_on_delay, 
     std::map<int, double>& spindles_status,
-    const double goto_default_speed = 50.0)
+    const double goto_default_feedrate = 50.0)
 {
     std::function<void(int, int)> on_stop_execution = [](int, int) {};
 
     std::map<char, std::tuple<double, double, double>> directions = {
-        {'X', {(direction_value==0.0)?2000:direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[0]), std::min(goto_default_speed, cfg.max_velocity_mm_s[0])}},
-        {'Y', {(direction_value==0.0)?4000:direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[1]), std::min(goto_default_speed, cfg.max_velocity_mm_s[1])}},
-        {'Z', {(direction_value==0.0)?300:direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[2]), std::min(goto_default_speed, cfg.max_velocity_mm_s[2])}}};
+        {'X', {(direction_value==0.0)?2000:direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[0]), std::min(goto_default_feedrate, cfg.max_velocity_mm_s[0])}},
+        {'Y', {(direction_value==0.0)?4000:direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[1]), std::min(goto_default_feedrate, cfg.max_velocity_mm_s[1])}},
+        {'Z', {(direction_value==0.0)?300:direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[2]), std::min(goto_default_feedrate, cfg.max_velocity_mm_s[2])}}};
 
     auto [distance, min_feed, max_feed] = directions[axis_id];
-    std::cerr << "DEBUG: " << direction_value << " " <<  distance << " " <<  min_feed << " " << max_feed << std::endl;
+//    std::cerr << "DEBUG: " << direction_value << " " <<  distance << " " <<  min_feed << " " << max_feed << std::endl;
     auto backward_distance = -3.0 * std::abs(distance) / distance;
     // forward fast move. We will break it on endstop hit
     raspigcd::hardware::multistep_commands_t forward_fast_commands = program_to_steps(
@@ -216,7 +216,7 @@ void home_position_find(char axis_id,
 
     std::atomic<bool> going_to_origin = true;
     auto probe_actions = [&going_to_origin, &machine](int k, int v) {
-        std::cout << "probe ... " << k << "  " << v << std::endl;
+        std::cout << "[II] probe ... " << k << "  " << v << std::endl;
         if (going_to_origin) {
             if (v == 1) {
                 going_to_origin = false;
@@ -238,7 +238,7 @@ void home_position_find(char axis_id,
 
     try {
         machine.stepping->exec(forward_fast_commands, [machine, &is_cancel_execution, &is_paused, last_spindle_on_delay, &spindles_status](auto, auto tick_n) -> int {
-            std::cout << "[II] terminated endstop at " << tick_n << std::endl;
+            std::cout << "[II] terminated endstop at " << tick_n << " ticks." << std::endl;
             machine.timer_drv->wait_us(100000);
             if (is_cancel_execution) {
                 for (auto e : spindles_status) {
@@ -265,9 +265,9 @@ void home_position_find(char axis_id,
         } catch (...) {
         }
     }
-    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](auto, auto) {});
-    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](auto, auto) {});
-    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](auto, auto) {});
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](auto, auto) {});// ignore the endstop
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](auto, auto) {});// ignore the endstop
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](auto, auto) {});// ignore the endstop
     machine.stepping->exec(backward_slow_commands, [machine, &is_cancel_execution, &is_paused, last_spindle_on_delay, &spindles_status](auto, auto /*tick_n*/) -> int {
         if (is_cancel_execution) {
             for (auto e : spindles_status) {
