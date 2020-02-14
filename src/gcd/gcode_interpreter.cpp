@@ -153,7 +153,7 @@ partitioned_program_t insert_additional_nodes_inbetween(partitioned_program_t& p
                     if ((block.at('G') == 0) || (block.at('G') == 1)) {
                         auto next_state = merge_blocks(current_state, block);
                         distance_t move_vec = blocks_to_vector_move(current_state, next_state);
-                        if (move_vec.length() < 0.1) {
+                        if (move_vec.length() < 0.00000001) {
                             nsubprog.push_back(block);
                         } else {
                             double max_accel = machine_limits.proportional_max_accelerations_mm_s2(move_vec);
