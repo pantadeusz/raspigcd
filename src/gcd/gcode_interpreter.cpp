@@ -180,6 +180,13 @@ partitioned_program_t insert_additional_nodes_inbetween(partitioned_program_t& p
                                 auto mid_state = merge_blocks(current_state, distance_to_block(block_to_distance_t(current_state) + move_vec));
                                 mid_state['G'] = next_state['G'];
                                 mid_state['F'] = std::max(next_state['F'], current_state['F']);
+                                a = {block_to_distance_t(current_state), max_no_acc_v}; //current_state['F']};
+                                b = {block_to_distance_t(mid_state), mid_state['F']};
+                                while (acceleration_between(a, b) > max_accel) {
+                                    mid_state['F'] = mid_state['F']*0.75;
+                                    a = {block_to_distance_t(current_state), max_no_acc_v}; //current_state['F']};
+                                    b = {block_to_distance_t(mid_state), mid_state['F']};
+                                }
                                 nsubprog.push_back(mid_state);
                                 nsubprog.push_back(next_state);
                             }
