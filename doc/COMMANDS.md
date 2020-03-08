@@ -5,9 +5,10 @@
 ### General meaning of symbols
 
 | symbol | meaning |
+| ------ | ------- |
 | G      | G command |
 | M      | M command |
-| X      | X coordinate in mm, or delay in seconds|
+| X      | X coordinate in mm, or delay in seconds |
 | Y      | Y coordinate in mm |
 | Z      | Z coordinate in mm |
 | F      | feedrate in mm/s |
