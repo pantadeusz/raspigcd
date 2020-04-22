@@ -52,6 +52,7 @@
   "spindles": [
     {
       "cycle_time_seconds": 0.1,
+      "mode":"spindle",
       "duty_max": 0.1,
       "duty_min": 0.0,
       "pin": 8,
