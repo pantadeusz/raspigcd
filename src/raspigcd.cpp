@@ -1035,14 +1035,15 @@ int main(int argc, char** argv)
             std::thread consumer_thread([&steps_consumer](){
                 steps_consumer.run();
             });
+            machine.steppers_drv->enable_steppers({true,true,true,true});
             std::this_thread::sleep_for(1s);
 
             std::array<raspigcd::hardware::single_step_command, 4> move_x = {};
             std::array<raspigcd::hardware::single_step_command, 4> move_0 = {};
             move_x[0].step = 1;
             multistep_command step_c = {.b=move_x,.flags={.all=0}, .count=1};
-            multistep_command delay_c = {.b=move_x,.flags={.all=0}, .count=150};
-            for (int s = 0; s < 100; s++) {
+            multistep_command delay_c = {.b=move_0,.flags={.all=0}, .count=100};
+            for (int s = 0; s < 2000; s++) {
                 queue->put(producer_cancel_execution,step_c,1000);
                 queue->put(producer_cancel_execution,delay_c,1000);
             }
@@ -1050,6 +1051,8 @@ int main(int argc, char** argv)
             std::this_thread::sleep_for(5s);
             steps_consumer.cancel_execution = true;
             consumer_thread.join();
+            machine.steppers_drv->enable_steppers({false,false,false,false});
+
             //            std::atomic<bool> cancel_execution = false;
             //            execute_gcode_file(cfg, raw_gcode, args.at(i), machine, cancel_execution);
         } else if (args.at(i) == "--configtest") {
