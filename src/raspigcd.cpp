@@ -1032,27 +1032,55 @@ int main(int argc, char** argv)
             auto queue = std::make_shared<fifo_c<multistep_command>>();
             std::atomic_bool producer_cancel_execution = false;
             steps_consumer_t steps_consumer(queue, machine.timer_drv, machine.steppers_drv, cfg.tick_duration_us);
-            std::thread consumer_thread([&steps_consumer](){
+            std::thread consumer_thread([&steps_consumer]() {
                 steps_consumer.run();
             });
-            machine.steppers_drv->enable_steppers({true,true,true,true});
+            machine.steppers_drv->enable_steppers({true, true, true, true});
             std::this_thread::sleep_for(1s);
 
-            std::array<raspigcd::hardware::single_step_command, 4> move_x = {};
-            std::array<raspigcd::hardware::single_step_command, 4> move_0 = {};
-            move_x[0].step = 1;
-            multistep_command step_c = {.b=move_x,.flags={.all=0}, .count=1};
-            multistep_command delay_c = {.b=move_0,.flags={.all=0}, .count=100};
+
+            auto chase_steps = [&](const steps_t& start_pos_, const steps_t& destination_pos_) {
+                //hardware::multistep_commands_t ret;
+                auto steps = start_pos_;
+                hardware::multistep_command executor_command = {};
+                executor_command.count = 1;
+                int did_mod = 1;
+                //ret.reserve(4096);
+                do {
+                    did_mod = 0;
+                    for (unsigned int i = 0; i < steps.size(); i++) {
+                        if (destination_pos_[i] > steps[i]) {
+                            steps[i]++;
+                            executor_command.b[i].dir = 1;
+                            executor_command.b[i].step = 1;
+                            did_mod = 1;
+                        } else if (destination_pos_[i] < steps[i]) {
+                            steps[i]--;
+                            executor_command.b[i].dir = 0;
+                            executor_command.b[i].step = 1;
+                            did_mod = 1;
+                        } else {
+                            executor_command.b[i].step = 0;
+                        }
+                    }
+                    //if (did_mod) {
+                    queue->put(producer_cancel_execution, executor_command, 1000);
+                    //}
+                } while (did_mod); //while ((--stodo) > 0);
+            };
+            std::this_thread::sleep_for(5s);
+
             for (int s = 0; s < 2000; s++) {
-                queue->put(producer_cancel_execution,step_c,1000);
-                queue->put(producer_cancel_execution,delay_c,1000);
-                std::cout << "step..." << std::endl;
+                chase_steps({0, 0, 0, 0}, {1, 0, 0, 0});
+                for (int k = 0; k < 60; k++)
+                    chase_steps({0, 0, 0, 0}, {0, 0, 0, 0});
             }
+
             using namespace std::chrono_literals;
             std::this_thread::sleep_for(5s);
             steps_consumer.cancel_execution = true;
             consumer_thread.join();
-            machine.steppers_drv->enable_steppers({false,false,false,false});
+            machine.steppers_drv->enable_steppers({false, false, false, false});
 
             //            std::atomic<bool> cancel_execution = false;
             //            execute_gcode_file(cfg, raw_gcode, args.at(i), machine, cancel_execution);
