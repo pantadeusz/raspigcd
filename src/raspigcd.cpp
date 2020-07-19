@@ -896,118 +896,7 @@ public:
         }
     };
 };
-/*
 
-class cnc_state_t
-{
-public:
-    steps_t steps;
-    double feedrate;
-};
-
-class cnc_machine_t
-{
-    std::mutex exec_mutex;
-    cnc_state_t current_state;
-
-    hardware::multistep_commands_t chase_steps(const steps_t& start_pos_, const steps_t& destination_pos_)
-    {
-        hardware::multistep_commands_t ret;
-        auto steps = start_pos_;
-        hardware::multistep_command executor_command = {};
-        executor_command.count = 1;
-        int did_mod = 1;
-        int pushed = 0;
-        ret.reserve(4096);
-        do {
-            did_mod = 0;
-            for (unsigned int i = 0; i < steps.size(); i++) {
-                if (destination_pos_[i] > steps[i]) {
-                    steps[i]++;
-                    executor_command.b[i].dir = 1;
-                    executor_command.b[i].step = 1;
-                    did_mod = 1;
-                } else if (destination_pos_[i] < steps[i]) {
-                    steps[i]--;
-                    executor_command.b[i].dir = 0;
-                    executor_command.b[i].step = 1;
-                    did_mod = 1;
-                } else {
-                    executor_command.b[i].step = 0;
-                }
-            }
-            if (did_mod) {
-                pushed++;
-                //ret.push_back(executor_command);
-                if ((ret.size() == 0) ||
-                    !(multistep_command_same_command(executor_command, ret.back()))) {
-                    ret.push_back(executor_command);
-                } else {
-                    if (ret.back().count > 0x0fffffff) {
-                        ret.push_back(executor_command);
-                    } else {
-                        ret.back().count += executor_command.count;
-                    }
-                }
-            }
-        } while (did_mod); //while ((--stodo) > 0);
-        if (pushed == 0) ret.push_back(executor_command);
-        ret.shrink_to_fit();
-        return std::move(ret);
-    }
-
-
-public:
-    std::shared_ptr<motor_layout> m_layout;
-    std::shared_ptr<low_timers> timers;
- 
-    long int tick_duration_us;
-
-    steps_consumer_t steps_consumer;
-
-    cnc_machine_t() : steps_consumer() {
-        
-    }
-    
-
-
-    exec(std::string gcdcommandline)
-    {
-        std::lock_guard<std::mutex> guard(exec_mutex);
-        auto command_map = command_to_map_of_arguments(gcdcommandline);
-
-        if (command_map.count('G')) { // treat G0 and G1 the same, except for laser settings
-            using namespace raspigcd::hardware;
-            using namespace raspigcd::gcd;
-            using namespace raspigcd::movement::simple_steps;
-            using namespace movement::physics;
-
-            double dt = ((double)tick_duration_us) / 1000000.0;
-            //distance_with_velocity_t from_dist, to_dist;
-            steps_t pos_from_steps = current_state.steps;                           // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
-            steps_t pos_from_dist = m_layout.steps_to_cartesian(current_state.steps;// ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
-
-            steps_t pos_to_steps = m_layout.cartesian_to_steps({command_map.count('X')?command_map.at('X'):, pp0[1], pp0[2], pp0[3]});
-            std::vector<distance_with_velocity_t> distances = {
-                {current_state.steps, 0, 0, 0, 1},
-                {0, 0, 0, 0, 1}};
-            follow_path_with_velocity<5>(distances, [&](const distance_with_velocity_t& position) {
-                distance_t dest_pos = {position[0], position[1], position[2], position[3]};
-                
-
-                pos_to_steps = ml_.cartesian_to_steps(dest_pos);
-                multistep_commands_t steps_todo = chase_steps( pos_from_steps, pos_to_steps);
-                //smart_append(result, steps_todo);
-
-                
-                pos_from_steps = pos_to_steps;
-            },
-                dt, 0.025);
-        }
-        current_state = next_state;
-    }
-};
-*/
 int main(int argc, char** argv)
 {
     using namespace std::chrono_literals;
@@ -1029,6 +918,7 @@ int main(int argc, char** argv)
         } else if (args.at(i) == "-") { // from stdin
             i++;
             auto machine = stepping_simple_timer_factory(cfg);
+            int buffer_size_for_moves = 1000;
             auto queue = std::make_shared<fifo_c<multistep_command>>();
             std::atomic_bool producer_cancel_execution = false;
             steps_consumer_t steps_consumer(queue, machine.timer_drv, machine.steppers_drv, cfg.tick_duration_us);
@@ -1064,29 +954,51 @@ int main(int argc, char** argv)
                         }
                     }
                     //if (did_mod) {
-                    queue->put(producer_cancel_execution, executor_command, 1000);
+                    queue->put(producer_cancel_execution, executor_command, buffer_size_for_moves);
                     //}
                 } while (did_mod); //while ((--stodo) > 0);
             };
             std::this_thread::sleep_for(5s);
 
-            for (int s = 0; s < 2000; s++) {
-                chase_steps({0, 0, 0, 0}, {1, 0, 0, 0});
-                for (int k = 0; k < 60; k++)
-                    chase_steps({0, 0, 0, 0}, {0, 0, 0, 0});
+
+            {
+                using namespace raspigcd::hardware;
+                using namespace raspigcd::gcd;
+                //using namespace raspigcd::movement::simple_steps;
+                using namespace movement::physics;
+
+                double dt = ((double)cfg.tick_duration_us) / 1000000.0;
+                //distance_with_velocity_t from_dist, to_dist;
+                steps_t pos_from_steps = {0, 0, 0, 0}; // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
+                steps_t pos_from_dist = machine.motor_layout_->cartesian_to_steps({20.0, 0.0, 0.0, 0.0});
+
+                steps_t pos_to_steps = pos_from_steps; // current position
+
+                std::vector<distance_with_velocity_t> distances = {
+                    machine.motor_layout_->steps_to_cartesian(pos_from_steps),
+                    (machine.motor_layout_->steps_to_cartesian(pos_from_steps) + machine.motor_layout_->steps_to_cartesian(pos_from_dist)) * 0.5,
+                    machine.motor_layout_->steps_to_cartesian(pos_from_dist)};
+                distances[0][4] = 0.1;
+                distances[1][4] = 30.0;
+                distances[2][4] = 0.1;
+                follow_path_with_velocity<5>(distances, [&](const distance_with_velocity_t& position) {
+                    distance_t dest_pos = {position[0], position[1], position[2], position[3]};
+
+
+                    pos_to_steps = machine.motor_layout_->cartesian_to_steps(dest_pos);
+                    chase_steps(pos_from_steps, pos_to_steps);
+
+                    pos_from_steps = pos_to_steps;
+                },
+                    dt, 0.025);
             }
+
 
             using namespace std::chrono_literals;
             std::this_thread::sleep_for(5s);
             steps_consumer.cancel_execution = true;
             consumer_thread.join();
             machine.steppers_drv->enable_steppers({false, false, false, false});
-
-            //            std::atomic<bool> cancel_execution = false;
-            //            execute_gcode_file(cfg, raw_gcode, args.at(i), machine, cancel_execution);
-        } else if (args.at(i) == "--configtest") {
-            //            interactive_mode_execution(cfg, raw_gcode);
-            i++;
         }
     }
 
