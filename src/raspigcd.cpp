@@ -1046,6 +1046,7 @@ int main(int argc, char** argv)
             for (int s = 0; s < 2000; s++) {
                 queue->put(producer_cancel_execution,step_c,1000);
                 queue->put(producer_cancel_execution,delay_c,1000);
+                std::cout << "step..." << std::endl;
             }
             using namespace std::chrono_literals;
             std::this_thread::sleep_for(5s);
