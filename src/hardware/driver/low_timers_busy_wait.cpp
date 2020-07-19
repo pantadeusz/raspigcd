@@ -46,10 +46,12 @@ std::chrono::high_resolution_clock::time_point low_timers_busy_wait::wait_for_ti
 {
     auto ttime = std::chrono::microseconds((unsigned long)(t));
     auto nextT = prev_timer + ttime;
+    int counter = 0;
     for (; std::chrono::system_clock::now() < nextT;){
         std::this_thread::yield();
+        counter ++;
     }
-    return nextT;
+    return counter?nextT:std::chrono::system_clock::now(); // step lost.. next step will reset
 };
 
 } // namespace driver

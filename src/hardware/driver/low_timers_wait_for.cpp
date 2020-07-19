@@ -48,8 +48,10 @@ std::chrono::high_resolution_clock::time_point low_timers_wait_for::wait_for_tic
     // always busy wait - better timing, but more resource consuming
     //for (; std::chrono::system_clock::now() < nextT;)
     //    ;
+    if (nextT < std::chrono::system_clock::now()) return std::chrono::system_clock::now();
     std::this_thread::sleep_until(nextT);
 
+    
     return nextT;
 };
 

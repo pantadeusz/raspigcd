@@ -181,32 +181,32 @@ void execute_calculated_multistep(raspigcd::hardware::multistep_commands_t m_com
     });
 }
 
-void home_position_find(char axis_id, 
+void home_position_find(char axis_id,
     double direction_value,
-    converters::program_to_steps_f_t program_to_steps, 
-    configuration::global cfg, 
-    execution_objects_t machine, 
-    std::atomic<bool>& is_cancel_execution, 
-    std::atomic<bool>& is_paused, 
-    long int last_spindle_on_delay, 
+    converters::program_to_steps_f_t program_to_steps,
+    configuration::global cfg,
+    execution_objects_t machine,
+    std::atomic<bool>& is_cancel_execution,
+    std::atomic<bool>& is_paused,
+    long int last_spindle_on_delay,
     std::map<int, double>& spindles_status,
     const double goto_default_feedrate = 50.0)
 {
     std::function<void(int, int)> on_stop_execution = [](int, int) {};
 
     std::map<char, std::tuple<double, double, double>> directions = {
-        {'X', {(direction_value==0.0)?2000:direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[0]), std::min(goto_default_feedrate, cfg.max_velocity_mm_s[0])}},
-        {'Y', {(direction_value==0.0)?4000:direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[1]), std::min(goto_default_feedrate, cfg.max_velocity_mm_s[1])}},
-        {'Z', {(direction_value==0.0)?300:direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[2]), std::min(goto_default_feedrate, cfg.max_velocity_mm_s[2])}}};
+        {'X', {(direction_value == 0.0) ? 2000 : direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[0]), std::min(goto_default_feedrate, cfg.max_velocity_mm_s[0])}},
+        {'Y', {(direction_value == 0.0) ? 4000 : direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[1]), std::min(goto_default_feedrate, cfg.max_velocity_mm_s[1])}},
+        {'Z', {(direction_value == 0.0) ? 300 : direction_value, std::min(5.0, cfg.max_no_accel_velocity_mm_s[2]), std::min(goto_default_feedrate, cfg.max_velocity_mm_s[2])}}};
 
     auto [distance, min_feed, max_feed] = directions[axis_id];
-//    std::cerr << "DEBUG: " << direction_value << " " <<  distance << " " <<  min_feed << " " << max_feed << std::endl;
+    //    std::cerr << "DEBUG: " << direction_value << " " <<  distance << " " <<  min_feed << " " << max_feed << std::endl;
     auto backward_distance = -3.0 * std::abs(distance) / distance;
     // forward fast move. We will break it on endstop hit
     raspigcd::hardware::multistep_commands_t forward_fast_commands = program_to_steps(
-        {{{'G', 1.0}, 
-          {axis_id, std::min(std::abs(distance), 10.0) * std::abs(distance) / distance}, {'F', max_feed}},
-          {{'G', 1.0}, {axis_id, distance}, {'F', max_feed}}},
+        {{{'G', 1.0},
+             {axis_id, std::min(std::abs(distance), 10.0) * std::abs(distance) / distance}, {'F', max_feed}},
+            {{'G', 1.0}, {axis_id, distance}, {'F', max_feed}}},
         cfg, *(machine.motor_layout_.get()), {{'X', 0.0}, {'Y', 0.0}, {'Z', 0.0}, {'A', 0.0}, {'F', min_feed}}, [](const gcd::block_t) {});
     // backward slow move. We will break it on endstop release
     raspigcd::hardware::multistep_commands_t backward_slow_commands = program_to_steps(
@@ -265,9 +265,9 @@ void home_position_find(char axis_id,
         } catch (...) {
         }
     }
-    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](auto, auto) {});// ignore the endstop
-    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](auto, auto) {});// ignore the endstop
-    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](auto, auto) {});// ignore the endstop
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](auto, auto) {}); // ignore the endstop
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](auto, auto) {}); // ignore the endstop
+    machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](auto, auto) {}); // ignore the endstop
     machine.stepping->exec(backward_slow_commands, [machine, &is_cancel_execution, &is_paused, last_spindle_on_delay, &spindles_status](auto, auto /*tick_n*/) -> int {
         if (is_cancel_execution) {
             for (auto e : spindles_status) {
@@ -509,21 +509,20 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
                         for (auto pelem : ppart) {
                             if ((int)(pelem.count('X'))) {
                                 home_position_find('X',
-                                pelem['X'], 
-                                program_to_steps, cfg, machine, cancel_execution, paused, 
-                                last_spindle_on_delay, spindles_status,pelem.count('F')?pelem['F']:50);
+                                    pelem['X'],
+                                    program_to_steps, cfg, machine, cancel_execution, paused,
+                                    last_spindle_on_delay, spindles_status, pelem.count('F') ? pelem['F'] : 50);
                             }
                             if ((int)(pelem.count('Y'))) {
-                                home_position_find('Y', 
-                                pelem['Y'],
-                                program_to_steps, cfg, machine, cancel_execution, paused, 
-                                last_spindle_on_delay, spindles_status,pelem.count('F')?pelem['F']:50);
+                                home_position_find('Y',
+                                    pelem['Y'],
+                                    program_to_steps, cfg, machine, cancel_execution, paused,
+                                    last_spindle_on_delay, spindles_status, pelem.count('F') ? pelem['F'] : 50);
                             }
                             if ((int)(pelem.count('Z'))) {
-                                home_position_find('Z', 
-                                pelem['Z']
-                                ,program_to_steps, cfg, machine, cancel_execution, paused, 
-                                last_spindle_on_delay, spindles_status,pelem.count('F')?pelem['F']:50);
+                                home_position_find('Z',
+                                    pelem['Z'], program_to_steps, cfg, machine, cancel_execution, paused,
+                                    last_spindle_on_delay, spindles_status, pelem.count('F') ? pelem['F'] : 50);
                             }
                         }
                         machine_state_ret = machine_state;
@@ -846,7 +845,224 @@ auto interactive_mode_execution = [](const auto cfg, const auto raw_gcode) {
     } while (command != "q");
 };
 
+
+/*
+gcode preprocessing
+gcode execution:
+ steps generator - producer - only one
+ steps executor - consumer - only one
+
+ machine class
+*/
+
+
+class steps_consumer_t
+{
+public:
+    std::shared_ptr<fifo_c<multistep_command>> queue; // must be set to valid queue!!
+    std::shared_ptr<low_timers> timers;
+    std::shared_ptr<low_steppers> steppers;
+
+    std::atomic<bool> cancel_execution;
+    std::atomic<int> delay_microseconds;
+
+    steps_consumer_t(
+        std::shared_ptr<fifo_c<multistep_command>> queue_,
+        std::shared_ptr<low_timers> timers_,
+        std::shared_ptr<low_steppers> steppers_,
+        int delay_microseconds_)
+    {
+        if (queue_.get() == nullptr) throw std::invalid_argument("queue must be valid pointer");
+        queue = queue_;
+        if (timers_.get() == nullptr) throw std::invalid_argument("timers must be valid pointer");
+        timers = timers_;
+        if (steppers_.get() == nullptr) throw std::invalid_argument("timers must be valid pointer");
+        steppers = steppers_;
+        delay_microseconds = delay_microseconds_;
+        cancel_execution = false;
+    }
+    void run()
+    {
+        std::chrono::high_resolution_clock::time_point prev_timer = timers->start_timing();
+        while (!cancel_execution) {
+            auto s = queue->get(cancel_execution);
+            while ((s.count > 0) && (!cancel_execution)) {
+                s.count--;
+                steppers->do_step(s.b);
+                //_steps_counter += s.b[0].step + s.b[1].step + s.b[2].step;
+                //_tick_index++;
+                prev_timer = timers->wait_for_tick_us(prev_timer, delay_microseconds);
+            }
+        }
+    };
+};
+/*
+
+class cnc_state_t
+{
+public:
+    steps_t steps;
+    double feedrate;
+};
+
+class cnc_machine_t
+{
+    std::mutex exec_mutex;
+    cnc_state_t current_state;
+
+    hardware::multistep_commands_t chase_steps(const steps_t& start_pos_, const steps_t& destination_pos_)
+    {
+        hardware::multistep_commands_t ret;
+        auto steps = start_pos_;
+        hardware::multistep_command executor_command = {};
+        executor_command.count = 1;
+        int did_mod = 1;
+        int pushed = 0;
+        ret.reserve(4096);
+        do {
+            did_mod = 0;
+            for (unsigned int i = 0; i < steps.size(); i++) {
+                if (destination_pos_[i] > steps[i]) {
+                    steps[i]++;
+                    executor_command.b[i].dir = 1;
+                    executor_command.b[i].step = 1;
+                    did_mod = 1;
+                } else if (destination_pos_[i] < steps[i]) {
+                    steps[i]--;
+                    executor_command.b[i].dir = 0;
+                    executor_command.b[i].step = 1;
+                    did_mod = 1;
+                } else {
+                    executor_command.b[i].step = 0;
+                }
+            }
+            if (did_mod) {
+                pushed++;
+                //ret.push_back(executor_command);
+                if ((ret.size() == 0) ||
+                    !(multistep_command_same_command(executor_command, ret.back()))) {
+                    ret.push_back(executor_command);
+                } else {
+                    if (ret.back().count > 0x0fffffff) {
+                        ret.push_back(executor_command);
+                    } else {
+                        ret.back().count += executor_command.count;
+                    }
+                }
+            }
+        } while (did_mod); //while ((--stodo) > 0);
+        if (pushed == 0) ret.push_back(executor_command);
+        ret.shrink_to_fit();
+        return std::move(ret);
+    }
+
+
+public:
+    std::shared_ptr<motor_layout> m_layout;
+    std::shared_ptr<low_timers> timers;
+ 
+    long int tick_duration_us;
+
+    steps_consumer_t steps_consumer;
+
+    cnc_machine_t() : steps_consumer() {
+        
+    }
+    
+
+
+    exec(std::string gcdcommandline)
+    {
+        std::lock_guard<std::mutex> guard(exec_mutex);
+        auto command_map = command_to_map_of_arguments(gcdcommandline);
+
+        if (command_map.count('G')) { // treat G0 and G1 the same, except for laser settings
+            using namespace raspigcd::hardware;
+            using namespace raspigcd::gcd;
+            using namespace raspigcd::movement::simple_steps;
+            using namespace movement::physics;
+
+            double dt = ((double)tick_duration_us) / 1000000.0;
+            //distance_with_velocity_t from_dist, to_dist;
+            steps_t pos_from_steps = current_state.steps;                           // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
+            steps_t pos_from_dist = m_layout.steps_to_cartesian(current_state.steps;// ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
+
+            steps_t pos_to_steps = m_layout.cartesian_to_steps({command_map.count('X')?command_map.at('X'):, pp0[1], pp0[2], pp0[3]});
+            std::vector<distance_with_velocity_t> distances = {
+                {current_state.steps, 0, 0, 0, 1},
+                {0, 0, 0, 0, 1}};
+            follow_path_with_velocity<5>(distances, [&](const distance_with_velocity_t& position) {
+                distance_t dest_pos = {position[0], position[1], position[2], position[3]};
+                
+
+                pos_to_steps = ml_.cartesian_to_steps(dest_pos);
+                multistep_commands_t steps_todo = chase_steps( pos_from_steps, pos_to_steps);
+                //smart_append(result, steps_todo);
+
+                
+                pos_from_steps = pos_to_steps;
+            },
+                dt, 0.025);
+        }
+        current_state = next_state;
+    }
+};
+*/
 int main(int argc, char** argv)
+{
+    using namespace std::chrono_literals;
+    std::vector<std::string> args(argv, argv + argc);
+    configuration::global cfg;
+    cfg.load_defaults();
+
+    bool raw_gcode = false; // should I push G commands directly, without adaptation to machine
+    for (unsigned i = 1; i < args.size(); i++) {
+        if ((args.at(i) == "-h") || (args.at(i) == "--help")) {
+            help_text(args);
+        } else if (args.at(i) == "-c") {
+            i++;
+            cfg.load(args.at(i));
+        } else if (args.at(i) == "-C") {
+            std::cout << cfg << std::endl;
+        } else if (args.at(i) == "--raw") {
+            raw_gcode = true;
+        } else if (args.at(i) == "-") { // from stdin
+            i++;
+            auto machine = stepping_simple_timer_factory(cfg);
+            auto queue = std::make_shared<fifo_c<multistep_command>>();
+            std::atomic_bool producer_cancel_execution = false;
+            steps_consumer_t steps_consumer(queue, machine.timer_drv, machine.steppers_drv, cfg.tick_duration_us);
+            std::thread consumer_thread([&steps_consumer](){
+                steps_consumer.run();
+            });
+            std::this_thread::sleep_for(1s);
+
+            std::array<raspigcd::hardware::single_step_command, 4> move_x = {};
+            std::array<raspigcd::hardware::single_step_command, 4> move_0 = {};
+            move_x[0].step = 1;
+            multistep_command step_c = {.b=move_x,.flags={.all=0}, .count=1};
+            multistep_command delay_c = {.b=move_x,.flags={.all=0}, .count=150};
+            for (int s = 0; s < 100; s++) {
+                queue->put(producer_cancel_execution,step_c,1000);
+                queue->put(producer_cancel_execution,delay_c,1000);
+            }
+            using namespace std::chrono_literals;
+            std::this_thread::sleep_for(5s);
+            steps_consumer.cancel_execution = true;
+            consumer_thread.join();
+            //            std::atomic<bool> cancel_execution = false;
+            //            execute_gcode_file(cfg, raw_gcode, args.at(i), machine, cancel_execution);
+        } else if (args.at(i) == "--configtest") {
+            //            interactive_mode_execution(cfg, raw_gcode);
+            i++;
+        }
+    }
+
+    return 0;
+}
+
+
+int main_old(int argc, char** argv)
 {
     using namespace std::chrono_literals;
     std::vector<std::string> args(argv, argv + argc);
