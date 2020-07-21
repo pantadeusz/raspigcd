@@ -983,11 +983,25 @@ public:
         _steps_consumer.cancel_execution = true;
         _consumer_thread.join();
     }
-/*
-    void execute_g_moves() {
 
+    /**
+     * @brief executes only G0 moves
+     * 
+     * @param moves_buffer_ 
+     */
+    void execute_g0_moves(std::vector<std::string> moves_buffer_) {
+        std::cout << "========>" << std::endl;
+        for (auto e : moves_buffer_) {
+            std::cout << e << " ----" << std::endl;
+        }
+        std::cout << "<========" << std::endl;
     }
 
+    /**
+     * @brief executes gcode string
+     * 
+     * @param program_ 
+     */
     void execute_gcode(std::string program_)
     {
         // command_to_map_of_arguments
@@ -995,36 +1009,29 @@ public:
         std::sregex_token_iterator
             first{program_.begin(), program_.end(), re, -1},
             last;
-        std::map<int,std::string> moves_buffer;
+        std::vector<std::string> moves_buffer;
         auto lines = std::vector<std::string>(first, last);
         std::map<char, double> previous_cm;
-        for (int line_number = 0; line_number < lines.size(); line_number++) {
+        for (unsigned int line_number = 0; line_number < lines.size(); line_number++) {
             try {
-                auto cm = command_to_map_of_arguments(lines[line_number]);
                 moves_buffer.push_back(lines[line_number]);
-                if (*)
-                try {
-                if (cm.at('G') == previous_cm.at('G')) {
-                    moves_buffer.push_back(lines[line_number]);
-                }
-                } catch (...) {
-                    if (moves_buffer.size() > 0) {
-
+                auto prev_interpreted = command_to_map_of_arguments(moves_buffer[0]);
+                auto next_interpreted = command_to_map_of_arguments(moves_buffer.back());
+                if (!(prev_interpreted.count('G') && (prev_interpreted['G'] == next_interpreted['G']))) {
+                    if (prev_interpreted.count('G') && (prev_interpreted['G'] == 0)) {
+                        execute_g0_moves(std::vector<std::string>(moves_buffer.begin(),moves_buffer.end()-1));
+                    } else {
+                        std::cout << "not G0/G1 code" << std::endl;
                     }
-
-                    moves_buffer.clear();
-                    moves_buffer.push_back(lines[line_number]);
-                } // ignore errors here
-
+                    moves_buffer = {moves_buffer.back()};
+                }
 
             } catch (const std::invalid_argument& err) {
-                throw std::invalid_argument(std::string("gcode_to_maps_of_arguments[") + std::to_string(line_number) + "]: \"" + line + "\" ::: " + err.what());
+                throw std::invalid_argument(std::string("gcode_to_maps_of_arguments[") + std::to_string(line_number) + "]: \"" + lines[line_number] + "\" ::: " + err.what());
             }
-            previous_cm = cm;
         }
-        return ret;
     }
-*/
+
     void sample_move()
     {
         using namespace std::chrono_literals;
@@ -1068,6 +1075,7 @@ int main(int argc, char** argv)
             int buffer_size_for_moves = 30000;
             auto queue = std::make_shared<fifo_c<multistep_command>>();
             cnc_executor_t executor(machine, cfg.tick_duration_us, buffer_size_for_moves);
+            executor.execute_gcode("G0X10\nM12\nG0X10\nG0Y12\nM12\nG1X11\nG1Y12\nG0X22");
             executor.sample_move();
         }
     }
