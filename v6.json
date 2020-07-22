@@ -62,7 +62,8 @@
       "duty_min": 0.001,
       "pin": 18,
       "pin_negate":false,
-      "mode":"laser"
+      "mode":"spindle",
+      "mode_":"laser"
     }
   ],
   "steppers": [
@@ -82,7 +83,7 @@
       "dir": 9,
       "en": 10,
       "step": 11,
-      "steps_per_mm": 160.0
+      "steps_per_mm": 200.0
     }
   ],
   "tick_duration_us": 35,

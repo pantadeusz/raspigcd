@@ -103,10 +103,12 @@ TEST_CASE("gcode_interpreter_test - insert_additional_nodes_inbetween", "[gcd][g
             if (i == 2) {
                 INFO(i);
                 INFO(result[i].size());
+                INFO(back_to_gcode({input[i]}));
+                INFO(back_to_gcode({result[i]}));
                 REQUIRE(result[i].size() == (input[i].size()+1));
                 REQUIRE(result[i][0]['G'] == input[i][0]['G']);
                 REQUIRE(result[i][1]['G'] == input[i][0]['G']);
-                REQUIRE(result[i][0]['F'] == input[i][0]['F']);
+                REQUIRE(result[i][0]['F'] == Approx(23.7305) );
                 REQUIRE(result[i][1]['F'] == input[i][0]['F']);
             } else {
                 REQUIRE(result[i].size() == input[i].size());

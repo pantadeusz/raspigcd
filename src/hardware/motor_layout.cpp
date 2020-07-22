@@ -54,9 +54,9 @@ distance_t corexy_layout_t::steps_to_cartesian(const steps_t& steps_)
 
 void corexy_layout_t::set_configuration(const configuration::actuators_organization& cfg)
 {
-    for (int i = 0; i < steps_per_milimeter_.size(); i++)
+    for (int i = 0; i < (int)steps_per_milimeter_.size(); i++)
         steps_per_milimeter_[i] = 1;
-    for (int i = 0; i < scales_.size(); i++)
+    for (int i = 0; i < (int)scales_.size(); i++)
         scales_[i] = 1;
     for (unsigned int i = 0; i < cfg.steppers.size(); i++) {
         steps_per_milimeter_[i] = cfg.steppers.at(i).steps_per_mm;
@@ -95,9 +95,9 @@ distance_t cartesian_layout_t::steps_to_cartesian(const steps_t& steps_)
 
 void cartesian_layout_t::set_configuration(const configuration::actuators_organization& cfg)
 {
-    for (int i = 0; i < steps_per_milimeter_.size(); i++)
+    for (int i = 0; i < (int)steps_per_milimeter_.size(); i++)
         steps_per_milimeter_[i] = 1;
-    for (int i = 0; i < scales_.size(); i++)
+    for (int i = 0; i < (int)scales_.size(); i++)
         scales_[i] = 1;
     for (unsigned int i = 0; i < cfg.steppers.size(); i++) {
         steps_per_milimeter_[i] = cfg.steppers.at(i).steps_per_mm;

@@ -74,7 +74,7 @@ private:
     std::atomic<bool> _threads_alive;
     //std::vector<std::future<void>> _spindle_threads;
     std::vector<std::thread> _spindle_threads;
-    std::vector<double> _spindle_duties;
+    std::vector< double > _spindle_duties;
 
     std::vector<bool> _enabled_steppers;
 

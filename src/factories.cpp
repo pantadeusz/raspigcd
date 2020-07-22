@@ -78,21 +78,21 @@ public:
                 movements_track.push_back(current_position);
             }
 
-            if (current_position[0] < -10) { // 10mm left
+            if (current_position[0] < -1000) { // 1000mm left
                 if (previous_button_state[0] != 1) buttons_drv->trigger_button_down(0);
                 previous_button_state[0] = 1;
             } else {
                 if (previous_button_state[0] != 0) buttons_drv->trigger_button_up(0);
                 previous_button_state[0] = 0;
             }
-            if (current_position[1] > 10) { // 10mm forward (y positive)
+            if (current_position[1] > 1000) { // 10mm forward (y positive)
                 if (previous_button_state[1] != 1) buttons_drv->trigger_button_down(1);
                 previous_button_state[1] = 1;
             } else {
                 if (previous_button_state[1] != 0) buttons_drv->trigger_button_up(1);
                 previous_button_state[1] = 0;
             }
-            if (current_position[2] > 90) { // 90mm up
+            if (current_position[2] > 900) { // 90mm up
                 if (previous_button_state[2] != 1) buttons_drv->trigger_button_down(2);
                 previous_button_state[2] = 1;
             } else {
@@ -264,14 +264,16 @@ class video_sdl
 {
 public:
     std::atomic<bool> active;
-    void set_spindle(double spindle_power_level_)
+    void set_spindle(double /*spindle_power_level_*/)
     {
     }
-    void set_steps(const steps_t& st)
+    void set_steps(const steps_t& /*st*/)
     {
     }
 
-    video_sdl(configuration::global* cfg_, driver::low_buttons_fake* buttons_drv, int width = 640, int height = 480)
+    video_sdl(configuration::global* /*cfg_*/, 
+              driver::low_buttons_fake* /*buttons_drv*/,
+              int /*width = 640*/, int /*height = 480*/)
     {
         active = true;
     }
