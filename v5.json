@@ -43,8 +43,8 @@
   ],
   "motion_layout": "cartesian",
   "scale": [
-    1.0,
     -1.0,
+    1.0,
     -1.0,
     1.0
   ],
