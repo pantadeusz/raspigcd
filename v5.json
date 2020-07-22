@@ -52,8 +52,8 @@
   "spindles": [
     {
       "cycle_time_seconds": 0.1,
-      "mode":"spindle",
-      "duty_max": 0.1,
+      "mode":"laser",
+      "duty_max": 1.0,
       "duty_min": 0.0,
       "pin": 8,
       "pin_negate":false
