@@ -435,7 +435,8 @@ auto do_the_acceleration_limiting = [](auto program, const configuration::limits
 
 program_t g1_move_to_g1_with_machine_limits(const program_t& program_states,
     const configuration::limits& machine_limits,
-    block_t current_state0)
+    block_t current_state0,
+    bool do_the_accel_limit)
 {
     using namespace raspigcd::movement::physics;
     if (program_states.size() == 0) throw std::invalid_argument("there must be at least one G0 or G1 code in the program!");
@@ -472,7 +473,7 @@ program_t g1_move_to_g1_with_machine_limits(const program_t& program_states,
     // std::reverse(result_with_limits.begin(), result_with_limits.end());
     // result_with_limits = do_the_acceleration_limiting(result_with_limits, machine_limits);
     // std::reverse(result_with_limits.begin(), result_with_limits.end());
-    result_with_limits = do_the_acceleration_limiting(result_with_limits, machine_limits);
+    if ( do_the_accel_limit ) result_with_limits = do_the_acceleration_limiting(result_with_limits, machine_limits);
     result_with_limits.erase(result_with_limits.begin());
     return result_with_limits;
 }

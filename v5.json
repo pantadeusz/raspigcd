@@ -24,20 +24,20 @@
   ],
   "lasers": [],
   "max_accelerations_mm_s2": [
-    800.0,
-    800.0,
-    40.0,
+    1000.0,
+    1000.0,
+    50.0,
     200.0
   ],
   "max_no_accel_velocity_mm_s": [
-    3.0,
-    3.0,
+    5.0,
+    5.0,
     0.15,
     3.0
   ],
   "max_velocity_mm_s": [
-    300.0,
-    300.0,
+    200.0,
+    200.0,
     7.0,
     20.0
   ],
@@ -51,9 +51,9 @@
   "simulate_execution": false,
   "spindles": [
     {
-      "cycle_time_seconds": 0.1,
+      "cycle_time_seconds": 0.05,
       "mode":"laser",
-      "duty_max": 1.0,
+      "duty_max": 0.05,
       "duty_min": 0.0,
       "pin": 8,
       "pin_negate":false
