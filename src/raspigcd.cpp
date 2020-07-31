@@ -1028,13 +1028,13 @@ public:
 
             if (((pp3 - pp0) * distance_with_velocity_t{1.0, 1.0, 1.0, 1.0, 0.0}).length() == 0) continue;
 
-            const double frac = 0.1;
+            double frac = 0.25;
             auto move_vec_norm = (pp3 - pp0) / (pp3 - pp0).length();
             double prop_max_accel = _cfg.proportional_max_accelerations_mm_s2(move_vec_norm);
             double max_speed_frac = 1.0;
+            double max_speed_frac_d = 0.5;
             double max_acceleration = _cfg.proportional_max_accelerations_mm_s2(move_vec_norm);
-            // estimate best acceleration
-            for (int i = 0; i < 10; i++) {
+            auto calculate_pp = [&](){
                 pp1 = pp0 * (1.0 - frac) + pp3 * (frac);
                 pp2 = pp0 * (frac) + pp3 * (1.0 - frac);
 
@@ -1048,15 +1048,34 @@ public:
                 double acceleration_l = distance_t(abaccel_vec).length();
                 double t = (pp1.back() - pp0.back()) / max_acceleration;
                 double s = pp0.back() * t + 0.5 * max_acceleration * t * t; // target distance acceleration
+                return std::pair(s,acceleration_l);
+            };
+
+            // adjust frac
+            for (int i = 0; i < 10; i++) {
+                auto [s,acceleration_l] = calculate_pp();
                 if (s < acceleration_l) {
-                    max_speed_frac *= 2.0;
+                    frac -= 0.02;
                 } else if (s > acceleration_l) {
-                    max_speed_frac *= 0.5;
+                    frac += 0.02;
+                }
+                if (frac  < 0.01) {frac = 0.01; break;}
+                if (frac > 0.5) {frac = 0.49; break;}
+            }
+            // estimate best acceleration
+            for (int i = 0; i < 10; i++) {
+                auto [s,acceleration_l] = calculate_pp();
+                if (s < acceleration_l) {
+                    max_speed_frac += max_speed_frac_d;
+                    max_speed_frac_d *= 0.5;
+                } else if (s > acceleration_l) {
+                        max_speed_frac -= max_speed_frac_d;
+                        max_speed_frac_d *= 0.5;
                 } else
                     break;
-                if (max_speed_frac > 1.0) break;
+                if (max_speed_frac > 1.0)
+                    break;
             }
-            std::cout << "spped frac = " << max_speed_frac << std::endl;
 
             path_to_follow.push_back(pp1);
             path_to_follow.push_back(pp2);
