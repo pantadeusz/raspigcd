@@ -1156,7 +1156,7 @@ int main(int argc, char** argv)
             int buffer_size_for_moves = 3000;
             auto queue = std::make_shared<fifo_c<multistep_command>>();
             cnc_executor_t executor(machine, cfg, buffer_size_for_moves);
-            executor.execute_gcode("M17G1F10G1X5F10\nM3\nG0X10\nG0Y12\nM5\nG1X11\nG1Y12\nG0X22\nG0X0Y0Z0M18");
+            executor.execute_gcode("M17\nG1F10G1X5F10\nM3\nG0X10\nG0Y12\nM5\nG1X11\nG1Y12\nG0X22\nG0X0Y0Z0M18");
         }
     }
 
