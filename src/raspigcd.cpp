@@ -316,11 +316,21 @@ public:
                 return;
             } else {
                 lock.clear(std::memory_order_release);
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
             }
         }
 
         throw std::invalid_argument("fifo_c: the put method broken.");
+    }
+
+    size_t size()
+    {
+        size_t ret;
+        while (lock.test_and_set(std::memory_order_acquire))
+            ;
+        ret = data.size();
+        lock.clear(std::memory_order_release);
+        return ret;
     }
 };
 /**
@@ -884,16 +894,23 @@ public:
     }
     void run()
     {
+        while (queue->size() < 100)
+            timers->wait_us(1000);
         std::chrono::high_resolution_clock::time_point prev_timer = timers->start_timing();
-        while (!cancel_execution) {
-            auto s = queue->get(cancel_execution);
-            while ((s.count > 0) && (!cancel_execution)) {
-                s.count--;
-                steppers->do_step(s.b);
-                //_steps_counter += s.b[0].step + s.b[1].step + s.b[2].step;
-                //_tick_index++;
-                prev_timer = timers->wait_for_tick_us(prev_timer, delay_microseconds);
+        try {
+            while (!cancel_execution) {
+                auto s = queue->get(cancel_execution);
+                while ((s.count > 0) && (!cancel_execution)) {
+                    s.count--;
+                    steppers->do_step(s.b);
+                    //_steps_counter += s.b[0].step + s.b[1].step + s.b[2].step;
+                    //_tick_index++;
+                    prev_timer = timers->wait_for_tick_us(prev_timer, delay_microseconds);
+                }
             }
+        } catch (std::invalid_argument& e) {
+            // good finish of the get method - we shoud finish execution
+            //std::cout << "finished execution of run() command on " << __FILE__ << ":" << __LINE__ << std::endl;
         }
     };
 };
@@ -987,9 +1004,6 @@ public:
     {
         _last_spindle_on_delay = 7000; // safe delay in miliseconds
         _current_position = {0.0, 0.0, 0.0, 0.0, 0.1};
-        _consumer_thread = std::thread([this]() {
-            _steps_consumer.run();
-        });
         _spindles_status[0] = 0.0;
     }
 
@@ -1007,7 +1021,6 @@ public:
     std::list<std::pair<std::size_t, std::string>> execute_g0_moves(
         const std::list<std::pair<std::size_t, std::string>>& moves_buffer_)
     {
-        int idx = 0;
         auto iterator = moves_buffer_.begin();
         std::vector<distance_with_velocity_t> path_to_follow = {_current_position};
         for (; iterator != moves_buffer_.end(); iterator++) {
@@ -1028,13 +1041,12 @@ public:
 
             if (((pp3 - pp0) * distance_with_velocity_t{1.0, 1.0, 1.0, 1.0, 0.0}).length() == 0) continue;
 
-            double frac = 0.25;
-            auto move_vec_norm = (pp3 - pp0) / (pp3 - pp0).length();
-            double prop_max_accel = _cfg.proportional_max_accelerations_mm_s2(move_vec_norm);
-            double max_speed_frac = 1.0;
-            double max_speed_frac_d = 0.5;
+            double frac = 0.25;                                      // the portion of the segment that is dedicated to acceleration and breaking
+            auto move_vec_norm = (pp3 - pp0) / (pp3 - pp0).length(); // the movement vector normalized to the length of 1
+            double max_speed_frac = 1.0;                             // the fraction of maximal speed that will be achieved
+            double max_speed_frac_d = 0.5;                           // the coefficient that is the negative powers of 2 for adjusting using binary search
             double max_acceleration = _cfg.proportional_max_accelerations_mm_s2(move_vec_norm);
-            auto calculate_pp = [&](){
+            auto calculate_pp = [&]() {
                 pp1 = pp0 * (1.0 - frac) + pp3 * (frac);
                 pp2 = pp0 * (frac) + pp3 * (1.0 - frac);
 
@@ -1044,33 +1056,38 @@ public:
                 pp3.back() = _cfg.proportional_max_no_accel_velocity_mm_s(move_vec_norm);
 
                 auto abaccel_vec = pp0 - pp1;
-                auto abaccel_dv = pp1.back() - pp0.back();
                 double acceleration_l = distance_t(abaccel_vec).length();
                 double t = (pp1.back() - pp0.back()) / max_acceleration;
                 double s = pp0.back() * t + 0.5 * max_acceleration * t * t; // target distance acceleration
-                return std::pair(s,acceleration_l);
+                return std::pair(s, acceleration_l);
             };
 
             // adjust frac
             for (int i = 0; i < 10; i++) {
-                auto [s,acceleration_l] = calculate_pp();
+                auto [s, acceleration_l] = calculate_pp();
                 if (s < acceleration_l) {
                     frac -= 0.02;
                 } else if (s > acceleration_l) {
                     frac += 0.02;
                 }
-                if (frac  < 0.01) {frac = 0.01; break;}
-                if (frac > 0.5) {frac = 0.49; break;}
+                if (frac < 0.01) {
+                    frac = 0.01;
+                    break;
+                }
+                if (frac > 0.5) {
+                    frac = 0.49;
+                    break;
+                }
             }
             // estimate best acceleration
             for (int i = 0; i < 10; i++) {
-                auto [s,acceleration_l] = calculate_pp();
+                auto [s, acceleration_l] = calculate_pp();
                 if (s < acceleration_l) {
                     max_speed_frac += max_speed_frac_d;
                     max_speed_frac_d *= 0.5;
                 } else if (s > acceleration_l) {
-                        max_speed_frac -= max_speed_frac_d;
-                        max_speed_frac_d *= 0.5;
+                    max_speed_frac -= max_speed_frac_d;
+                    max_speed_frac_d *= 0.5;
                 } else
                     break;
                 if (max_speed_frac > 1.0)
@@ -1081,11 +1098,6 @@ public:
             path_to_follow.push_back(pp2);
             path_to_follow.push_back(pp3);
         }
-        //        std::cout << "===G0===>" << std::endl;
-        //        for (auto e : path_to_follow) {
-        //            std::cout << e << " ----" << std::endl;
-        //        }
-        //        std::cout << "<========" << std::endl;
         perform_moves_abs(path_to_follow);
         return {iterator, moves_buffer_.end()};
     }
@@ -1098,7 +1110,6 @@ public:
     std::list<std::pair<std::size_t, std::string>> execute_g1_moves(
         const std::list<std::pair<std::size_t, std::string>>& moves_buffer_)
     {
-        int idx = 0;
         auto iterator = moves_buffer_.begin();
         std::vector<distance_with_velocity_t> path_to_follow = {_current_position};
         while (iterator != moves_buffer_.end()) {
@@ -1118,7 +1129,17 @@ public:
         //            std::cout << e << " ----" << std::endl;
         //        }
         //        std::cout << "<========" << std::endl;
+        if (_cfg.spindles.at(0).mode == configuration::spindle_modes::LASER) {
+            _machine.spindles_drv->spindle_pwm_power(0, _spindles_status[0]);
+        }
         perform_moves_abs(path_to_follow);
+        while (_queue->size() > 0)
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+        if (_cfg.spindles.at(0).mode == configuration::spindle_modes::LASER) {
+            _machine.spindles_drv->spindle_pwm_power(0, 0);
+        }
+
         return {iterator, moves_buffer_.end()};
     }
 
@@ -1144,26 +1165,31 @@ public:
                     [&n](const std::string s) -> std::pair<std::size_t, std::string> { return {n++, s}; });
             }
             while (lines_w_numbers.size() > 0) {
-                std::cout << lines_w_numbers.front().first << ":" << lines_w_numbers.front().second << std::endl;
+                //std::cout << lines_w_numbers.front().first << ":" << lines_w_numbers.front().second << std::endl;
                 try {
                     auto m = command_to_map_of_arguments(lines_w_numbers.front().second);
                     if (m.count('G')) {
+                        _consumer_thread = std::thread([this]() {
+                            _steps_consumer.cancel_execution = false;
+                            _steps_consumer.run();
+                        });
                         if (m['G'] == 0) lines_w_numbers = execute_g0_moves(lines_w_numbers);
                         if (m['G'] == 1) lines_w_numbers = execute_g1_moves(lines_w_numbers);
+                        while (_queue->size() > 0)
+                            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                        _steps_consumer.cancel_execution = true; // finish the consumer thread
+                        _consumer_thread.join();                 // and sync
                     } else if (m.count('M')) {
                         switch ((int)(m.at('M'))) {
                         case 17:
-                            std::cerr << "EN" << std::endl;
                             _machine.steppers_drv->enable_steppers({true, true, true, true});
                             wait_for_component_to_start(m, 200);
                             break;
                         case 18:
-                            std::cerr << "DIS" << std::endl;
                             _machine.steppers_drv->enable_steppers({false, false, false, false});
                             wait_for_component_to_start(m, 200);
                             break;
                         case 3:
-                            std::cerr << "S:EN" << std::endl;
                             _spindles_status[0] = 1.0;
                             if (_cfg.spindles.at(0).mode != configuration::spindle_modes::LASER) {
                                 _machine.spindles_drv->spindle_pwm_power(0, _spindles_status[0]);
@@ -1171,7 +1197,6 @@ public:
                             _last_spindle_on_delay = wait_for_component_to_start(m, 3000);
                             break;
                         case 5:
-                            std::cerr << "S:DIS" << std::endl;
                             _spindles_status[0] = 0.0;
                             if (_cfg.spindles.at(0).mode != configuration::spindle_modes::LASER) {
                                 _machine.spindles_drv->spindle_pwm_power(0, _spindles_status[0]);
@@ -1235,9 +1260,9 @@ int main(int argc, char** argv)
                 execution_thread = std::thread([&, l]() {
                     try {
                         executor.execute_gcode(l);
-                    } catch (const std::runtime_error e) {
+                    } catch (const std::runtime_error& e) {
                         std::cerr << "[E] you cannot run multiple programs at the same time. err: " << e.what() << std::endl;
-                    } catch (const std::invalid_argument e) {
+                    } catch (const std::invalid_argument& e) {
                         std::cerr << "[I] " << e.what() << std::endl;
                     }
                 });
