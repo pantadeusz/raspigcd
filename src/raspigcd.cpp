@@ -402,6 +402,16 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
     return 0;
 };
 
+auto wait_for_component_to_start = [](auto m, int t = 3000) {
+    if (m.count('P') == 1) {
+        t = m.at('P');
+    } else if (m.count('X') == 1) {
+        t = 1000 * m.at('X');
+    }
+    if (t > 0)
+        std::this_thread::sleep_for(std::chrono::milliseconds((int)t));
+    return t;
+};
 
 std::pair<int, block_t> execute_command_parts(partitioned_program_t program_parts,
     execution_objects_t machine,
@@ -464,16 +474,6 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
         std::map<int, double> spindles_status;
         long int last_spindle_on_delay = 7000;
 
-        auto wait_for_component_to_start = [](auto m, int t = 3000) {
-            if (m.count('P') == 1) {
-                t = m.at('P');
-            } else if (m.count('X') == 1) {
-                t = 1000 * m.at('X');
-            }
-            if (t > 0)
-                std::this_thread::sleep_for(std::chrono::milliseconds((int)t));
-            return t;
-        };
         for (std::size_t command_block_index = 0; (command_block_index < program_parts.size()) && (!cancel_execution); command_block_index++) {
             auto& ppart = program_parts[command_block_index];
 
@@ -908,8 +908,9 @@ class cnc_executor_t
     std::atomic_bool _producer_cancel_execution;
     steps_consumer_t _steps_consumer;
     std::thread _consumer_thread;
-    int &_tick_duration_us;
-
+    int& _tick_duration_us;
+    int _last_spindle_on_delay;
+    std::map<int, double> _spindles_status;
     distance_with_velocity_t _current_position;
 
     void chase_steps_exec(const steps_t& start_pos_, const steps_t& destination_pos_)
@@ -979,12 +980,14 @@ public:
                                               _queue(std::make_shared<fifo_c<multistep_command>>()),
                                               _producer_cancel_execution(false),
                                               _steps_consumer(_queue, _machine.timer_drv, _machine.steppers_drv, _cfg.tick_duration_us),
-                                              _tick_duration_us( cfg_.tick_duration_us)
+                                              _tick_duration_us(cfg_.tick_duration_us)
     {
+        _last_spindle_on_delay = 7000; // safe delay in miliseconds
         _current_position = {0.0, 0.0, 0.0, 0.0, 0.1};
         _consumer_thread = std::thread([this]() {
             _steps_consumer.run();
         });
+        _spindles_status[0] = 0.0;
     }
 
     virtual ~cnc_executor_t()
@@ -1081,11 +1084,41 @@ public:
             try {
                 auto m = command_to_map_of_arguments(lines_w_numbers.front().second);
                 if (m.count('G')) {
+                    std::cerr << "GGGGGG" << std::endl; 
                     if (m['G'] == 0) lines_w_numbers = execute_g0_moves(lines_w_numbers);
                     if (m['G'] == 1) lines_w_numbers = execute_g1_moves(lines_w_numbers);
                 } else if (m.count('M')) {
+                    std::cerr << "MMMMMM  " << m.at('M') << std::endl; 
+                    switch ((int)(m.at('M'))) {
+                    case 17:
+                        std::cerr << "EN" << std::endl;
+                        _machine.steppers_drv->enable_steppers({true, true, true, true});
+                        wait_for_component_to_start(m, 200);
+                        break;
+                    case 18:
+                        std::cerr << "DIS" << std::endl;
+                        _machine.steppers_drv->enable_steppers({false, false, false, false});
+                        wait_for_component_to_start(m, 200);
+                        break;
+                    case 3:
+                        std::cerr << "S:EN" << std::endl;
+                        _spindles_status[0] = 1.0;
+                        if (_cfg.spindles.at(0).mode != configuration::spindle_modes::LASER) {
+                            _machine.spindles_drv->spindle_pwm_power(0, _spindles_status[0]);
+                        }
+                        _last_spindle_on_delay = wait_for_component_to_start(m, 3000);
+                        break;
+                    case 5:
+                        std::cerr << "S:DIS" << std::endl;
+                        _spindles_status[0] = 0.0;
+                        if (_cfg.spindles.at(0).mode != configuration::spindle_modes::LASER) {
+                            _machine.spindles_drv->spindle_pwm_power(0, _spindles_status[0]);
+                        }
+                        wait_for_component_to_start(m, 3000);
+                        break;
+                    }
+
                     lines_w_numbers.pop_front();
-                    std::cout << "M... not interpreted" << std::endl;
                 } else {
                     std::cout << "unknown ... not interpreted" << std::endl;
                     lines_w_numbers.pop_front();
@@ -1123,7 +1156,7 @@ int main(int argc, char** argv)
             int buffer_size_for_moves = 3000;
             auto queue = std::make_shared<fifo_c<multistep_command>>();
             cnc_executor_t executor(machine, cfg, buffer_size_for_moves);
-            executor.execute_gcode("G1F10G1X5F10\nM12\nG0X10\nG0Y12\nM12\nG1X11\nG1Y12\nG0X22\nG0X0Y0Z0");
+            executor.execute_gcode("M17G1F10G1X5F10\nM3\nG0X10\nG0Y12\nM5\nG1X11\nG1Y12\nG0X22\nG0X0Y0Z0M18");
         }
     }
 
