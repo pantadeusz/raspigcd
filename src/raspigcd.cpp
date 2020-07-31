@@ -914,6 +914,8 @@ class cnc_executor_t
     std::map<int, double> _spindles_status;
     distance_with_velocity_t _current_position;
 
+    std::mutex _execute_mutex;
+
     void chase_steps_exec(const steps_t& start_pos_, const steps_t& destination_pos_)
     {
         //hardware::multistep_commands_t ret;
@@ -1011,20 +1013,37 @@ public:
         while (iterator != moves_buffer_.end()) {
             auto line_parsed = command_to_map_of_arguments((*iterator).second);
             if ((line_parsed.count('G') == 0) || (line_parsed['G'] != 0)) break;
+            auto pp0 = _current_position;
+            auto pp1 = _current_position;
+            
             _current_position = {
                 line_parsed.count('X') ? line_parsed['X'] : _current_position[0],
                 line_parsed.count('Y') ? line_parsed['Y'] : _current_position[1],
                 line_parsed.count('Z') ? line_parsed['Z'] : _current_position[2],
                 line_parsed.count('A') ? line_parsed['A'] : _current_position[3],
                 line_parsed.count('F') ? line_parsed['F'] : _current_position[4]};
-            path_to_follow.push_back(_current_position);
+
+            auto pp2 = _current_position;
+            auto pp3 = _current_position;
+
+            
+            pp1 = pp0*0.9+pp3*0.1;
+            pp2 = pp0*0.1+pp3*0.9;
+            pp0.back() = 0.1;
+            pp1.back() = _cfg.proportional_max_velocity_mm_s((pp3 - pp0) / (pp3 - pp0).length());
+            pp2.back() = _cfg.proportional_max_velocity_mm_s((pp3 - pp0) / (pp3 - pp0).length());
+            pp3.back() = 0.1;
+            
+            path_to_follow.push_back(pp1);
+            path_to_follow.push_back(pp2);
+            path_to_follow.push_back(pp3);
             iterator++;
         }
-        std::cout << "===G0===>" << std::endl;
-        for (auto e : path_to_follow) {
-            std::cout << e << " ----" << std::endl;
-        }
-        std::cout << "<========" << std::endl;
+//        std::cout << "===G0===>" << std::endl;
+//        for (auto e : path_to_follow) {
+//            std::cout << e << " ----" << std::endl;
+//        }
+//        std::cout << "<========" << std::endl;
         perform_moves_abs(path_to_follow);
         return {iterator, moves_buffer_.end()};
     }
@@ -1052,11 +1071,11 @@ public:
             path_to_follow.push_back(_current_position);
             iterator++;
         }
-        std::cout << "===G1===>" << std::endl;
-        for (auto e : path_to_follow) {
-            std::cout << e << " ----" << std::endl;
-        }
-        std::cout << "<========" << std::endl;
+//        std::cout << "===G1===>" << std::endl;
+//        for (auto e : path_to_follow) {
+//            std::cout << e << " ----" << std::endl;
+//        }
+//        std::cout << "<========" << std::endl;
         perform_moves_abs(path_to_follow);
         return {iterator, moves_buffer_.end()};
     }
@@ -1068,67 +1087,72 @@ public:
      */
     void execute_gcode(std::string program_)
     {
-        // command_to_map_of_arguments
-        std::regex re("[\r\n]");
-        std::sregex_token_iterator
-            first{program_.begin(), program_.end(), re, -1},
-            last;
-        std::vector<std::string> moves_buffer;
-        auto lines = std::vector<std::string>(first, last);
-        std::list<std::pair<std::size_t, std::string>> lines_w_numbers;
-        {
-            size_t n;
-            std::transform(lines.begin(), lines.end(), std::back_inserter(lines_w_numbers),
-                [&n](const std::string s) -> std::pair<std::size_t, std::string> { return {n++, s}; });
-        }
-        while (lines_w_numbers.size() > 0) {
-            try {
-                auto m = command_to_map_of_arguments(lines_w_numbers.front().second);
-                if (m.count('G')) {
-                    std::cerr << "GGGGGG" << std::endl;
-                    if (m['G'] == 0) lines_w_numbers = execute_g0_moves(lines_w_numbers);
-                    if (m['G'] == 1) lines_w_numbers = execute_g1_moves(lines_w_numbers);
-                } else if (m.count('M')) {
-                    std::cerr << "MMMMMM  " << m.at('M') << std::endl;
-                    switch ((int)(m.at('M'))) {
-                    case 17:
-                        std::cerr << "EN" << std::endl;
-                        _machine.steppers_drv->enable_steppers({true, true, true, true});
-                        wait_for_component_to_start(m, 200);
-                        break;
-                    case 18:
-                        std::cerr << "DIS" << std::endl;
-                        _machine.steppers_drv->enable_steppers({false, false, false, false});
-                        wait_for_component_to_start(m, 200);
-                        break;
-                    case 3:
-                        std::cerr << "S:EN" << std::endl;
-                        _spindles_status[0] = 1.0;
-                        if (_cfg.spindles.at(0).mode != configuration::spindle_modes::LASER) {
-                            _machine.spindles_drv->spindle_pwm_power(0, _spindles_status[0]);
-                        }
-                        _last_spindle_on_delay = wait_for_component_to_start(m, 3000);
-                        break;
-                    case 5:
-                        std::cerr << "S:DIS" << std::endl;
-                        _spindles_status[0] = 0.0;
-                        if (_cfg.spindles.at(0).mode != configuration::spindle_modes::LASER) {
-                            _machine.spindles_drv->spindle_pwm_power(0, _spindles_status[0]);
-                        }
-                        wait_for_component_to_start(m, 3000);
-                        break;
-                    }
-
-                    lines_w_numbers.pop_front();
-                } else {
-                    std::cout << "unknown ... not interpreted" << std::endl;
-                    lines_w_numbers.pop_front();
-                }
-            } catch (const std::invalid_argument& err) {
-                auto line_number = lines_w_numbers.front().first;
-                throw std::invalid_argument(std::string("gcode_to_maps_of_arguments[") +
-                                            std::to_string(line_number) + "]: \"" + lines[line_number] + "\" ::: " + err.what());
+        if (_execute_mutex.try_lock()) {
+            // command_to_map_of_arguments
+            std::regex re("[\r\n]");
+            std::sregex_token_iterator
+                first{program_.begin(), program_.end(), re, -1},
+                last;
+            std::vector<std::string> moves_buffer;
+            auto lines = std::vector<std::string>(first, last);
+            std::list<std::pair<std::size_t, std::string>> lines_w_numbers;
+            {
+                size_t n = 0;
+                std::transform(lines.begin(), lines.end(), std::back_inserter(lines_w_numbers),
+                    [&n](const std::string s) -> std::pair<std::size_t, std::string> { return {n++, s}; });
             }
+            while (lines_w_numbers.size() > 0) {
+                std::cout << lines_w_numbers.front().first << ":" << lines_w_numbers.front().second << std::endl;
+                try {
+                    auto m = command_to_map_of_arguments(lines_w_numbers.front().second);
+                    if (m.count('G')) {
+                        if (m['G'] == 0) lines_w_numbers = execute_g0_moves(lines_w_numbers);
+                        if (m['G'] == 1) lines_w_numbers = execute_g1_moves(lines_w_numbers);
+                    } else if (m.count('M')) {
+                        switch ((int)(m.at('M'))) {
+                        case 17:
+                            std::cerr << "EN" << std::endl;
+                            _machine.steppers_drv->enable_steppers({true, true, true, true});
+                            wait_for_component_to_start(m, 200);
+                            break;
+                        case 18:
+                            std::cerr << "DIS" << std::endl;
+                            _machine.steppers_drv->enable_steppers({false, false, false, false});
+                            wait_for_component_to_start(m, 200);
+                            break;
+                        case 3:
+                            std::cerr << "S:EN" << std::endl;
+                            _spindles_status[0] = 1.0;
+                            if (_cfg.spindles.at(0).mode != configuration::spindle_modes::LASER) {
+                                _machine.spindles_drv->spindle_pwm_power(0, _spindles_status[0]);
+                            }
+                            _last_spindle_on_delay = wait_for_component_to_start(m, 3000);
+                            break;
+                        case 5:
+                            std::cerr << "S:DIS" << std::endl;
+                            _spindles_status[0] = 0.0;
+                            if (_cfg.spindles.at(0).mode != configuration::spindle_modes::LASER) {
+                                _machine.spindles_drv->spindle_pwm_power(0, _spindles_status[0]);
+                            }
+                            wait_for_component_to_start(m, 3000);
+                            break;
+                        }
+
+                        lines_w_numbers.pop_front();
+                    } else {
+                        std::cout << "[I] skipping " <<lines_w_numbers.front().first << ":" << lines_w_numbers.front().second << std::endl;
+                        lines_w_numbers.pop_front();
+                    }
+                } catch (const std::invalid_argument& err) {
+                    _execute_mutex.unlock();
+                    auto line_number = lines_w_numbers.front().first;
+                    throw std::invalid_argument(std::string("gcode_to_maps_of_arguments on line ") +
+                                                std::to_string(line_number) + ": \"" + lines[line_number] + "\" ::: " + err.what());
+                }
+            }
+            _execute_mutex.unlock();
+        } else {
+            throw std::runtime_error("only one command can be executed at a time");
         }
     }
 };
@@ -1157,15 +1181,24 @@ int main(int argc, char** argv)
             int buffer_size_for_moves = 3000;
             auto queue = std::make_shared<fifo_c<multistep_command>>();
             cnc_executor_t executor(machine, cfg, buffer_size_for_moves);
-            //            executor.execute_gcode("M17\nG1F10G1X5F10\nM3\nG0X10\nG0Y12\nM5\nG1X11\nG1Y12\nG0X22\nG0X0Y0Z0M18");
 
             std::string l;
+            std::thread execution_thread;
             while (std::getline(std::cin, l)) {
-                std::cout << "l: " << l << std::endl;
-                std::regex vowel_re("[\\\\][n]");
-                l = std::regex_replace(l, vowel_re, "\n");
-                std::cout << "l: \"" << l << "\"" << std::endl;
-                executor.execute_gcode(l);
+                static const std::regex r("[\\\\][n]");
+                l = std::regex_replace(l, r, "\n");
+                if (execution_thread.joinable()) {
+                    execution_thread.join();
+                }
+                execution_thread = std::thread([&, l]() {
+                    try {
+                        executor.execute_gcode(l);
+                    } catch (const std::runtime_error e) {
+                        std::cerr << "[E] you cannot run multiple programs at the same time. err: " << e.what() << std::endl;
+                    } catch (const std::invalid_argument e) {
+                        std::cerr << "[I] " << e.what() << std::endl;
+                    }
+                });
             }
         }
     }
