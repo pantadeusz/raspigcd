@@ -900,15 +900,17 @@ public:
 class cnc_executor_t
 {
     execution_objects_t _machine;
+
+    configuration::global _cfg;
+
     int _buffer_size_for_moves = 30000;
     std::shared_ptr<fifo_c<multistep_command>> _queue;
     std::atomic_bool _producer_cancel_execution;
     steps_consumer_t _steps_consumer;
     std::thread _consumer_thread;
-    int _tick_duration_us;
+    int &_tick_duration_us;
 
     distance_with_velocity_t _current_position;
-
 
     void chase_steps_exec(const steps_t& start_pos_, const steps_t& destination_pos_)
     {
@@ -968,11 +970,18 @@ class cnc_executor_t
     };
 
 public:
-    cnc_executor_t(const execution_objects_t machine_, int tick_duration_us_, int buffer_size_for_moves_ = 30000) : _machine(machine_), _buffer_size_for_moves(buffer_size_for_moves_), _queue(std::make_shared<fifo_c<multistep_command>>()),
-                                                                                                                    _producer_cancel_execution(false), _steps_consumer(_queue, _machine.timer_drv, _machine.steppers_drv, tick_duration_us_),
-                                                                                                                    _tick_duration_us(tick_duration_us_)
+    cnc_executor_t(const execution_objects_t machine_,
+        //int tick_duration_us_,
+        configuration::global cfg_,
+        int buffer_size_for_moves_ = 30000) : _machine(machine_),
+                                              _cfg(cfg_),
+                                              _buffer_size_for_moves(buffer_size_for_moves_),
+                                              _queue(std::make_shared<fifo_c<multistep_command>>()),
+                                              _producer_cancel_execution(false),
+                                              _steps_consumer(_queue, _machine.timer_drv, _machine.steppers_drv, _cfg.tick_duration_us),
+                                              _tick_duration_us( cfg_.tick_duration_us)
     {
-        _current_position = {0.0, 0.0, 0.0, 0.0, 0.0};
+        _current_position = {0.0, 0.0, 0.0, 0.0, 0.1};
         _consumer_thread = std::thread([this]() {
             _steps_consumer.run();
         });
@@ -989,12 +998,63 @@ public:
      * 
      * @param moves_buffer_ 
      */
-    void execute_g0_moves(std::vector<std::string> moves_buffer_) {
-        std::cout << "========>" << std::endl;
-        for (auto e : moves_buffer_) {
+    std::list<std::pair<std::size_t, std::string>> execute_g0_moves(
+        const std::list<std::pair<std::size_t, std::string>>& moves_buffer_)
+    {
+        int idx = 0;
+        auto iterator = moves_buffer_.begin();
+        std::vector<distance_with_velocity_t> path_to_follow = {_current_position};
+        while (iterator != moves_buffer_.end()) {
+            auto line_parsed = command_to_map_of_arguments((*iterator).second);
+            if ((line_parsed.count('G') == 0) || (line_parsed['G'] != 0)) break;
+            _current_position = {
+                line_parsed.count('X') ? line_parsed['X'] : _current_position[0],
+                line_parsed.count('Y') ? line_parsed['Y'] : _current_position[1],
+                line_parsed.count('Z') ? line_parsed['Z'] : _current_position[2],
+                line_parsed.count('A') ? line_parsed['A'] : _current_position[3],
+                line_parsed.count('F') ? line_parsed['F'] : _current_position[4]};
+            path_to_follow.push_back(_current_position);
+            iterator++;
+        }
+        std::cout << "===G0===>" << std::endl;
+        for (auto e : path_to_follow) {
             std::cout << e << " ----" << std::endl;
         }
         std::cout << "<========" << std::endl;
+        perform_moves_abs(path_to_follow);
+        return {iterator, moves_buffer_.end()};
+    }
+
+    /**
+     * @brief executes only G0 moves
+     * 
+     * @param moves_buffer_ 
+     */
+    std::list<std::pair<std::size_t, std::string>> execute_g1_moves(
+        const std::list<std::pair<std::size_t, std::string>>& moves_buffer_)
+    {
+        int idx = 0;
+        auto iterator = moves_buffer_.begin();
+        std::vector<distance_with_velocity_t> path_to_follow = {_current_position};
+        while (iterator != moves_buffer_.end()) {
+            auto line_parsed = command_to_map_of_arguments((*iterator).second);
+            if ((line_parsed.count('G') == 0) || (line_parsed['G'] != 1)) break;
+            _current_position = {
+                line_parsed.count('X') ? line_parsed['X'] : _current_position[0],
+                line_parsed.count('Y') ? line_parsed['Y'] : _current_position[1],
+                line_parsed.count('Z') ? line_parsed['Z'] : _current_position[2],
+                line_parsed.count('A') ? line_parsed['A'] : _current_position[3],
+                line_parsed.count('F') ? line_parsed['F'] : _current_position[4]};
+            path_to_follow.push_back(_current_position);
+            iterator++;
+        }
+        std::cout << "===G1===>" << std::endl;
+        for (auto e : path_to_follow) {
+            std::cout << e << " ----" << std::endl;
+        }
+        std::cout << "<========" << std::endl;
+        perform_moves_abs(path_to_follow);
+        return {iterator, moves_buffer_.end()};
     }
 
     /**
@@ -1011,43 +1071,31 @@ public:
             last;
         std::vector<std::string> moves_buffer;
         auto lines = std::vector<std::string>(first, last);
-        std::map<char, double> previous_cm;
-        for (unsigned int line_number = 0; line_number < lines.size(); line_number++) {
+        std::list<std::pair<std::size_t, std::string>> lines_w_numbers;
+        {
+            size_t n;
+            std::transform(lines.begin(), lines.end(), std::back_inserter(lines_w_numbers),
+                [&n](const std::string s) -> std::pair<std::size_t, std::string> { return {n++, s}; });
+        }
+        while (lines_w_numbers.size() > 0) {
             try {
-                moves_buffer.push_back(lines[line_number]);
-                auto prev_interpreted = command_to_map_of_arguments(moves_buffer[0]);
-                auto next_interpreted = command_to_map_of_arguments(moves_buffer.back());
-                if (!(prev_interpreted.count('G') && (prev_interpreted['G'] == next_interpreted['G']))) {
-                    if (prev_interpreted.count('G') && (prev_interpreted['G'] == 0)) {
-                        execute_g0_moves(std::vector<std::string>(moves_buffer.begin(),moves_buffer.end()-1));
-                    } else {
-                        std::cout << "not G0/G1 code" << std::endl;
-                    }
-                    moves_buffer = {moves_buffer.back()};
+                auto m = command_to_map_of_arguments(lines_w_numbers.front().second);
+                if (m.count('G')) {
+                    if (m['G'] == 0) lines_w_numbers = execute_g0_moves(lines_w_numbers);
+                    if (m['G'] == 1) lines_w_numbers = execute_g1_moves(lines_w_numbers);
+                } else if (m.count('M')) {
+                    lines_w_numbers.pop_front();
+                    std::cout << "M... not interpreted" << std::endl;
+                } else {
+                    std::cout << "unknown ... not interpreted" << std::endl;
+                    lines_w_numbers.pop_front();
                 }
-
             } catch (const std::invalid_argument& err) {
-                throw std::invalid_argument(std::string("gcode_to_maps_of_arguments[") + std::to_string(line_number) + "]: \"" + lines[line_number] + "\" ::: " + err.what());
+                auto line_number = lines_w_numbers.front().first;
+                throw std::invalid_argument(std::string("gcode_to_maps_of_arguments[") +
+                                            std::to_string(line_number) + "]: \"" + lines[line_number] + "\" ::: " + err.what());
             }
         }
-    }
-
-    void sample_move()
-    {
-        using namespace std::chrono_literals;
-
-        std::this_thread::sleep_for(5s);
-
-
-        std::vector<distance_with_velocity_t> path = {
-            _current_position,
-            {10.0, 0.0, 0.0, 0.0, 30.0},
-            {20.0, 0.0, 0.0, 0.0, 30.0},
-            {30.0, 0.0, 0.0, 0.0, 0.1}};
-        perform_moves_abs(path);
-        _current_position = path.back();
-
-        std::this_thread::sleep_for(5s);
     }
 };
 
@@ -1072,11 +1120,10 @@ int main(int argc, char** argv)
         } else if (args.at(i) == "-") { // from stdin
             i++;
             auto machine = stepping_simple_timer_factory(cfg);
-            int buffer_size_for_moves = 30000;
+            int buffer_size_for_moves = 3000;
             auto queue = std::make_shared<fifo_c<multistep_command>>();
-            cnc_executor_t executor(machine, cfg.tick_duration_us, buffer_size_for_moves);
-            executor.execute_gcode("G0X10\nM12\nG0X10\nG0Y12\nM12\nG1X11\nG1Y12\nG0X22");
-            executor.sample_move();
+            cnc_executor_t executor(machine, cfg, buffer_size_for_moves);
+            executor.execute_gcode("G1F10G1X5F10\nM12\nG0X10\nG0Y12\nM12\nG1X11\nG1Y12\nG0X22\nG0X0Y0Z0");
         }
     }
 
