@@ -42,6 +42,7 @@ This is simple program that uses the library. It will execute given GCode.
 
 #include <fstream>
 #include <future>
+#include <iostream>
 #include <mutex>
 #include <random>
 #include <regex>
@@ -1084,11 +1085,11 @@ public:
             try {
                 auto m = command_to_map_of_arguments(lines_w_numbers.front().second);
                 if (m.count('G')) {
-                    std::cerr << "GGGGGG" << std::endl; 
+                    std::cerr << "GGGGGG" << std::endl;
                     if (m['G'] == 0) lines_w_numbers = execute_g0_moves(lines_w_numbers);
                     if (m['G'] == 1) lines_w_numbers = execute_g1_moves(lines_w_numbers);
                 } else if (m.count('M')) {
-                    std::cerr << "MMMMMM  " << m.at('M') << std::endl; 
+                    std::cerr << "MMMMMM  " << m.at('M') << std::endl;
                     switch ((int)(m.at('M'))) {
                     case 17:
                         std::cerr << "EN" << std::endl;
@@ -1156,7 +1157,16 @@ int main(int argc, char** argv)
             int buffer_size_for_moves = 3000;
             auto queue = std::make_shared<fifo_c<multistep_command>>();
             cnc_executor_t executor(machine, cfg, buffer_size_for_moves);
-            executor.execute_gcode("M17\nG1F10G1X5F10\nM3\nG0X10\nG0Y12\nM5\nG1X11\nG1Y12\nG0X22\nG0X0Y0Z0M18");
+            //            executor.execute_gcode("M17\nG1F10G1X5F10\nM3\nG0X10\nG0Y12\nM5\nG1X11\nG1Y12\nG0X22\nG0X0Y0Z0M18");
+
+            std::string l;
+            while (std::getline(std::cin, l)) {
+                std::cout << "l: " << l << std::endl;
+                std::regex vowel_re("[\\\\][n]");
+                l = std::regex_replace(l, vowel_re, "\n");
+                std::cout << "l: \"" << l << "\"" << std::endl;
+                executor.execute_gcode(l);
+            }
         }
     }
 
