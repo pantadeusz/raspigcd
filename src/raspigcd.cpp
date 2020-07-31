@@ -1010,12 +1010,12 @@ public:
         int idx = 0;
         auto iterator = moves_buffer_.begin();
         std::vector<distance_with_velocity_t> path_to_follow = {_current_position};
-        while (iterator != moves_buffer_.end()) {
+        for (; iterator != moves_buffer_.end(); iterator++) {
             auto line_parsed = command_to_map_of_arguments((*iterator).second);
             if ((line_parsed.count('G') == 0) || (line_parsed['G'] != 0)) break;
             auto pp0 = _current_position;
             auto pp1 = _current_position;
-            
+
             _current_position = {
                 line_parsed.count('X') ? line_parsed['X'] : _current_position[0],
                 line_parsed.count('Y') ? line_parsed['Y'] : _current_position[1],
@@ -1026,24 +1026,47 @@ public:
             auto pp2 = _current_position;
             auto pp3 = _current_position;
 
-            
-            pp1 = pp0*0.9+pp3*0.1;
-            pp2 = pp0*0.1+pp3*0.9;
-            pp0.back() = 0.1;
-            pp1.back() = _cfg.proportional_max_velocity_mm_s((pp3 - pp0) / (pp3 - pp0).length());
-            pp2.back() = _cfg.proportional_max_velocity_mm_s((pp3 - pp0) / (pp3 - pp0).length());
-            pp3.back() = 0.1;
-            
+            if (((pp3 - pp0) * distance_with_velocity_t{1.0, 1.0, 1.0, 1.0, 0.0}).length() == 0) continue;
+
+            const double frac = 0.1;
+            auto move_vec_norm = (pp3 - pp0) / (pp3 - pp0).length();
+            double prop_max_accel = _cfg.proportional_max_accelerations_mm_s2(move_vec_norm);
+            double max_speed_frac = 1.0;
+            double max_acceleration = _cfg.proportional_max_accelerations_mm_s2(move_vec_norm);
+            // estimate best acceleration
+            for (int i = 0; i < 10; i++) {
+                pp1 = pp0 * (1.0 - frac) + pp3 * (frac);
+                pp2 = pp0 * (frac) + pp3 * (1.0 - frac);
+
+                pp0.back() = _cfg.proportional_max_no_accel_velocity_mm_s(move_vec_norm);
+                pp1.back() = max_speed_frac * _cfg.proportional_max_velocity_mm_s(move_vec_norm);
+                pp2.back() = max_speed_frac * _cfg.proportional_max_velocity_mm_s(move_vec_norm);
+                pp3.back() = _cfg.proportional_max_no_accel_velocity_mm_s(move_vec_norm);
+
+                auto abaccel_vec = pp0 - pp1;
+                auto abaccel_dv = pp1.back() - pp0.back();
+                double acceleration_l = distance_t(abaccel_vec).length();
+                double t = (pp1.back() - pp0.back()) / max_acceleration;
+                double s = pp0.back() * t + 0.5 * max_acceleration * t * t; // target distance acceleration
+                if (s < acceleration_l) {
+                    max_speed_frac *= 2.0;
+                } else if (s > acceleration_l) {
+                    max_speed_frac *= 0.5;
+                } else
+                    break;
+                if (max_speed_frac > 1.0) break;
+            }
+            std::cout << "spped frac = " << max_speed_frac << std::endl;
+
             path_to_follow.push_back(pp1);
             path_to_follow.push_back(pp2);
             path_to_follow.push_back(pp3);
-            iterator++;
         }
-//        std::cout << "===G0===>" << std::endl;
-//        for (auto e : path_to_follow) {
-//            std::cout << e << " ----" << std::endl;
-//        }
-//        std::cout << "<========" << std::endl;
+        //        std::cout << "===G0===>" << std::endl;
+        //        for (auto e : path_to_follow) {
+        //            std::cout << e << " ----" << std::endl;
+        //        }
+        //        std::cout << "<========" << std::endl;
         perform_moves_abs(path_to_follow);
         return {iterator, moves_buffer_.end()};
     }
@@ -1071,11 +1094,11 @@ public:
             path_to_follow.push_back(_current_position);
             iterator++;
         }
-//        std::cout << "===G1===>" << std::endl;
-//        for (auto e : path_to_follow) {
-//            std::cout << e << " ----" << std::endl;
-//        }
-//        std::cout << "<========" << std::endl;
+        //        std::cout << "===G1===>" << std::endl;
+        //        for (auto e : path_to_follow) {
+        //            std::cout << e << " ----" << std::endl;
+        //        }
+        //        std::cout << "<========" << std::endl;
         perform_moves_abs(path_to_follow);
         return {iterator, moves_buffer_.end()};
     }
@@ -1140,7 +1163,7 @@ public:
 
                         lines_w_numbers.pop_front();
                     } else {
-                        std::cout << "[I] skipping " <<lines_w_numbers.front().first << ":" << lines_w_numbers.front().second << std::endl;
+                        std::cout << "[I] skipping " << lines_w_numbers.front().first << ":" << lines_w_numbers.front().second << std::endl;
                         lines_w_numbers.pop_front();
                     }
                 } catch (const std::invalid_argument& err) {
