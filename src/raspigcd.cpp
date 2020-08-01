@@ -1114,6 +1114,8 @@ public:
         std::vector<distance_with_velocity_t> path_to_follow = {_current_position};
         while (iterator != moves_buffer_.end()) {
             auto line_parsed = command_to_map_of_arguments((*iterator).second);
+            std::cout << ">> " << (*iterator).first << ":" << (*iterator).second << std::endl;
+
             if ((line_parsed.count('G') == 0) || (line_parsed['G'] != 1)) break;
             _current_position = {
                 line_parsed.count('X') ? line_parsed['X'] : _current_position[0],
@@ -1138,11 +1140,13 @@ public:
         return {iterator, moves_buffer_.end()};
     }
 
-    distance_t get_position() const {
+    distance_t get_position() const
+    {
         return _current_position;
     }
 
-    distance_with_velocity_t get_position_with_feedrate() const {
+    distance_with_velocity_t get_position_with_feedrate() const
+    {
         return _current_position;
     }
 
@@ -1168,7 +1172,7 @@ public:
                     [&n](const std::string s) -> std::pair<std::size_t, std::string> { return {n++, s}; });
             }
             while (lines_w_numbers.size() > 0) {
-                //std::cout << lines_w_numbers.front().first << ":" << lines_w_numbers.front().second << std::endl;
+                std::cout << lines_w_numbers.front().first << ":" << lines_w_numbers.front().second << std::endl;
                 try {
                     auto m = command_to_map_of_arguments(lines_w_numbers.front().second);
                     if (m.count('G')) {
@@ -1252,25 +1256,51 @@ int main(int argc, char** argv)
             auto queue = std::make_shared<fifo_c<multistep_command>>();
             cnc_executor_t executor(machine, cfg, buffer_size_for_moves);
 
-            std::string l;
             std::thread execution_thread;
-            while (std::getline(std::cin, l)) {
-                static const std::regex r("[\\\\][n]");
-                l = std::regex_replace(l, r, "\n");
-                if (execution_thread.joinable()) {
-                    execution_thread.join();
-                }
-                execution_thread = std::thread([&, l]() {
-                    try {
-                        executor.execute_gcode(l);
-                                                std::cout << "EXECUTE_DONE: " << executor.get_position() << std::endl;
+            while (!std::cin.eof()) {
+                std::string cmnd;
+                std::cin >> cmnd;
+                if (cmnd == "go") {
+                    std::string gcode_program = ";";
+                    bool multiline = false;
+                    std::string l;
+                    while (std::getline(std::cin, l)) {
+                        if (multiline && (l.find(";multiline") != std::string::npos)) break;
+                        static const std::regex r("[\\\\][n]");
+                        l = std::regex_replace(l, r, "\n");
+                        gcode_program += "\n" + l;
 
-                    } catch (const std::runtime_error& e) {
-                        std::cerr << "[E] you cannot run multiple programs at the same time. err: " << e.what() << std::endl;
-                    } catch (const std::invalid_argument& e) {
-                        std::cerr << "[I] " << e.what() << std::endl;
+
+                        if (!multiline) {
+                            if (l.find(";multiline") != std::string::npos)
+                                multiline = true;
+                            else
+                                break;
+                        }
                     }
-                });
+
+                    if (execution_thread.joinable()) {
+                        execution_thread.join();
+                    }
+                    execution_thread = std::thread([&, gcode_program]() {
+                        try {
+                            executor.execute_gcode(gcode_program);
+                            std::cout << "EXECUTE_DONE: " << executor.get_position() << std::endl;
+
+                        } catch (const std::runtime_error& e) {
+                            std::cerr << "[E] you cannot run multiple programs at the same time. err: " << e.what() << std::endl;
+                        } catch (const std::invalid_argument& e) {
+                            std::cerr << "[I] " << e.what() << std::endl;
+                        }
+                    });
+
+                } else if (cmnd == "q") {
+                    break;
+                } else if (cmnd == "sync") {
+                    if (execution_thread.joinable()) {
+                        execution_thread.join();
+                    }
+                }
             }
         }
     }
