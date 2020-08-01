@@ -1124,11 +1124,6 @@ public:
             path_to_follow.push_back(_current_position);
             iterator++;
         }
-        //        std::cout << "===G1===>" << std::endl;
-        //        for (auto e : path_to_follow) {
-        //            std::cout << e << " ----" << std::endl;
-        //        }
-        //        std::cout << "<========" << std::endl;
         if (_cfg.spindles.at(0).mode == configuration::spindle_modes::LASER) {
             _machine.spindles_drv->spindle_pwm_power(0, _spindles_status[0]);
         }
@@ -1141,6 +1136,14 @@ public:
         }
 
         return {iterator, moves_buffer_.end()};
+    }
+
+    distance_t get_position() const {
+        return _current_position;
+    }
+
+    distance_with_velocity_t get_position_with_feedrate() const {
+        return _current_position;
     }
 
     /**
@@ -1260,6 +1263,8 @@ int main(int argc, char** argv)
                 execution_thread = std::thread([&, l]() {
                     try {
                         executor.execute_gcode(l);
+                                                std::cout << "EXECUTE_DONE: " << executor.get_position() << std::endl;
+
                     } catch (const std::runtime_error& e) {
                         std::cerr << "[E] you cannot run multiple programs at the same time. err: " << e.what() << std::endl;
                     } catch (const std::invalid_argument& e) {
