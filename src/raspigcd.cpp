@@ -894,7 +894,7 @@ public:
     }
     void run()
     {
-        while (queue->size() < 100)
+        while ((queue->size() < 100) && (!cancel_execution))
             timers->wait_us(1000);
         std::chrono::high_resolution_clock::time_point prev_timer = timers->start_timing();
         try {
