@@ -894,10 +894,8 @@ public:
     }
     void run()
     {
-        while ((queue->size() < 100) && (!cancel_execution))
-            timers->wait_us(1000);
-        std::chrono::high_resolution_clock::time_point prev_timer = timers->start_timing();
         try {
+            std::chrono::high_resolution_clock::time_point prev_timer = timers->start_timing();
             while (!cancel_execution) {
                 auto s = queue->get(cancel_execution);
                 while ((s.count > 0) && (!cancel_execution)) {
@@ -910,8 +908,9 @@ public:
             }
         } catch (std::invalid_argument& e) {
             // good finish of the get method - we shoud finish execution
-            //std::cout << "finished execution of run() command on " << __FILE__ << ":" << __LINE__ << std::endl;
+            std::cout << "finished execution of run() command on " << __FILE__ << ":" << __LINE__ << std::endl;
         }
+        std::cout << "finished execution, cancel_execution = " << cancel_execution << std::endl;
     };
 };
 
@@ -1176,16 +1175,34 @@ public:
                 try {
                     auto m = command_to_map_of_arguments(lines_w_numbers.front().second);
                     if (m.count('G')) {
+                        _steps_consumer.cancel_execution = false;
                         _consumer_thread = std::thread([this]() {
-                            _steps_consumer.cancel_execution = false;
                             _steps_consumer.run();
                         });
-                        if (m['G'] == 0) lines_w_numbers = execute_g0_moves(lines_w_numbers);
-                        if (m['G'] == 1) lines_w_numbers = execute_g1_moves(lines_w_numbers);
+                        std::cout << "[I] running moves" << std::endl;
+                        if (m['G'] == 0)
+                            lines_w_numbers = execute_g0_moves(lines_w_numbers);
+                        else if (m['G'] == 1)
+                            lines_w_numbers = execute_g1_moves(lines_w_numbers);
+                        else if ((int)m['G'] == 92) {
+                            _current_position = {
+                                m.count('X') ? m['X'] : _current_position[0],
+                                m.count('Y') ? m['Y'] : _current_position[1],
+                                m.count('Z') ? m['Z'] : _current_position[2],
+                                m.count('A') ? m['A'] : _current_position[3],
+                                m.count('F') ? m['F'] : _current_position[4]};
+                            lines_w_numbers.pop_front();
+                        } else
+                            lines_w_numbers.pop_front();
+
+                        std::cout << "[I] waiting for execute to finish" << std::endl;
                         while (_queue->size() > 0)
                             std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                        std::cout << "[I] cancel_execution..." << std::endl;
                         _steps_consumer.cancel_execution = true; // finish the consumer thread
-                        _consumer_thread.join();                 // and sync
+                        std::cout << "[I] join.." << std::endl;
+                        _consumer_thread.join(); // and sync
+                        std::cout << "[I] finished G command - OK" << std::endl;
                     } else if (m.count('M')) {
                         switch ((int)(m.at('M'))) {
                         case 17:
@@ -1261,7 +1278,7 @@ int main(int argc, char** argv)
                 std::string cmnd;
                 std::cin >> cmnd;
                 if (cmnd == "go") {
-                    std::string gcode_program = ";";
+                    std::string gcode_program = "; direct gcode interpretation start";
                     bool multiline = false;
                     std::string l;
                     while (std::getline(std::cin, l)) {
