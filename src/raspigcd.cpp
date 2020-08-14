@@ -126,7 +126,7 @@ partitioned_program_t preprocess_program_parts(partitioned_program_t program_par
                     machine_state = last_state_after_program_execution(ppart, machine_state);
                     break;
                 case 1:
-                    ppart = g1_move_to_g1_with_machine_limits(ppart, cfg, machine_state, false);
+                    //  (DO NOT INTERPRET G1) ppart = g1_move_to_g1_with_machine_limits(ppart, cfg, machine_state, false);
                     prepared_program.insert(prepared_program.end(), ppart.begin(), ppart.end());
                     machine_state = last_state_after_program_execution(ppart, machine_state);
                     break;
