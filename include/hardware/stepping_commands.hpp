@@ -41,6 +41,7 @@ struct multistep_command {
         unsigned char all;
         struct {
             unsigned char g:2;
+            unsigned char program_finish_bit:1;
         } bits;
     } flags;
     int count;                                    // number of times to repeat the command, it means that the command will be executed repeat n.

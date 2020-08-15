@@ -898,6 +898,10 @@ public:
             std::chrono::high_resolution_clock::time_point prev_timer = timers->start_timing();
             while (!cancel_execution) {
                 auto s = queue->get(cancel_execution);
+                if (s.flags.bits.program_finish_bit == 1) {
+                    std::cout << "s.flags.bits.program_finish_bit: FINISH" << std::endl;
+                    break;
+                }
                 while ((s.count > 0) && (!cancel_execution)) {
                     s.count--;
                     steppers->do_step(s.b);
@@ -924,7 +928,6 @@ class cnc_executor_t
     std::shared_ptr<fifo_c<multistep_command>> _queue;
     std::atomic_bool _producer_cancel_execution;
     steps_consumer_t _steps_consumer;
-    std::thread _consumer_thread;
     int& _tick_duration_us;
     int _last_spindle_on_delay;
     std::map<int, double> _spindles_status;
@@ -932,7 +935,7 @@ class cnc_executor_t
 
     std::mutex _execute_mutex;
 
-    void chase_steps_exec(const steps_t& start_pos_, const steps_t& destination_pos_)
+    void chase_steps_exec(const steps_t start_pos_, const steps_t destination_pos_)
     {
         //hardware::multistep_commands_t ret;
         auto steps = start_pos_;
@@ -969,7 +972,7 @@ class cnc_executor_t
  * 
  * @param distances list of nodes to visit - x,y,z,a,feedrate
  */
-    void perform_moves_abs(const std::vector<distance_with_velocity_t>& distances)
+    void perform_moves_abs(const std::vector<distance_with_velocity_t> distances)
     {
         using namespace raspigcd::hardware;
         using namespace raspigcd::gcd;
@@ -999,7 +1002,7 @@ public:
                                               _queue(std::make_shared<fifo_c<multistep_command>>()),
                                               _producer_cancel_execution(false),
                                               _steps_consumer(_queue, _machine.timer_drv, _machine.steppers_drv, _cfg.tick_duration_us),
-                                              _tick_duration_us(cfg_.tick_duration_us)
+                                              _tick_duration_us(_cfg.tick_duration_us)
     {
         _last_spindle_on_delay = 7000; // safe delay in miliseconds
         _current_position = {0.0, 0.0, 0.0, 0.0, 0.1};
@@ -1009,7 +1012,6 @@ public:
     virtual ~cnc_executor_t()
     {
         _steps_consumer.cancel_execution = true;
-        _consumer_thread.join();
     }
 
     /**
@@ -1176,7 +1178,7 @@ public:
                     auto m = command_to_map_of_arguments(lines_w_numbers.front().second);
                     if (m.count('G')) {
                         _steps_consumer.cancel_execution = false;
-                        _consumer_thread = std::thread([this]() {
+                        std::thread _consumer_thread = std::thread([this]() {
                             _steps_consumer.run();
                         });
                         std::cout << "[I] running moves" << std::endl;
@@ -1194,13 +1196,9 @@ public:
                             lines_w_numbers.pop_front();
                         } else
                             lines_w_numbers.pop_front();
-
-                        std::cout << "[I] waiting for execute to finish" << std::endl;
-                        while (_queue->size() > 0)
-                            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                        std::cout << "[I] cancel_execution..." << std::endl;
-                        _steps_consumer.cancel_execution = true; // finish the consumer thread
-                        std::cout << "[I] join.." << std::endl;
+                        multistep_command terminate_command;
+                        terminate_command.flags.bits.program_finish_bit = 1;
+                        _queue->put(_steps_consumer.cancel_execution, terminate_command, 10);
                         _consumer_thread.join(); // and sync
                         std::cout << "[I] finished G command - OK" << std::endl;
                     } else if (m.count('M')) {
@@ -1301,6 +1299,7 @@ int main(int argc, char** argv)
                     }
                     execution_thread = std::thread([&, gcode_program]() {
                         try {
+                            std::cout << "EXECUTE_START: " << executor.get_position() << std::endl;
                             executor.execute_gcode(gcode_program);
                             std::cout << "EXECUTE_DONE: " << executor.get_position() << std::endl;
 
