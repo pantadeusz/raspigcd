@@ -24,36 +24,36 @@
   ],
   "lasers": [],
   "max_accelerations_mm_s2": [
-    800.0,
-    800.0,
-    40.0,
+    1000.0,
+    1000.0,
+    50.0,
     200.0
   ],
   "max_no_accel_velocity_mm_s": [
-    3.0,
-    3.0,
+    5.0,
+    5.0,
     0.15,
     3.0
   ],
   "max_velocity_mm_s": [
-    300.0,
-    300.0,
+    200.0,
+    200.0,
     7.0,
     20.0
   ],
   "motion_layout": "cartesian",
   "scale": [
-    1.0,
     -1.0,
+    1.0,
     -1.0,
     1.0
   ],
   "simulate_execution": false,
   "spindles": [
     {
-      "cycle_time_seconds": 0.1,
-      "mode":"spindle",
-      "duty_max": 0.1,
+      "cycle_time_seconds": 0.05,
+      "mode":"laser",
+      "duty_max": 0.05,
       "duty_min": 0.0,
       "pin": 8,
       "pin_negate":false
@@ -85,5 +85,7 @@
   "steps_generator": "linear_interpolation",
   "steps_generator_2": "bezier_spline",
   "lowleveltimer_1": "low_timers_fake",
-  "lowleveltimer_2": "low_timers_wait_for"
+  "lowleveltimer_2": "low_timers_wait_for",
+  "gcode_prefix":"M17\nG28Z300\nG28X-1600F150\nG28Y-3000F100\nG92X-40F10\nG0X0\nG92Z42\nG0Z0\nG92Z0X0Y0\nM3P200\n",
+  "gcode_suffix":"G28Z300\nM5P100\nM18"
 }

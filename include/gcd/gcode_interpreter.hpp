@@ -127,7 +127,8 @@ program_t apply_limits_for_turns (const program_t& program_states,
 
 program_t g1_move_to_g1_with_machine_limits(const program_t& program_states,
     const configuration::limits& machine_limits,
-    block_t current_state = {{'X',0},{'Y',0},{'Z',0},{'A',0}});
+    block_t current_state = {{'X',0},{'Y',0},{'Z',0},{'A',0}},
+    bool do_the_accel_limit = true);
 
 /**
  * @brief converts G0 into sequences of G1 moves that accelerates to maximal
