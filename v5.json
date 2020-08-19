@@ -36,7 +36,7 @@
     3.0
   ],
   "max_velocity_mm_s": [
-    200.0,
+    230.0,
     200.0,
     7.0,
     20.0
@@ -79,13 +79,13 @@
       "steps_per_mm": 1066.6666666
     }
   ],
-  "tick_duration_us": 35,
+  "tick_duration_us": 45,
   "douglas_peucker_marigin": 0.04,
   "steps_generator0": "program_to_steps",
   "steps_generator": "linear_interpolation",
   "steps_generator_2": "bezier_spline",
   "lowleveltimer_1": "low_timers_fake",
   "lowleveltimer_2": "low_timers_wait_for",
-  "gcode_prefix":"M17\nG28Z300\nG28X-1600F150\nG28Y-3000F100\nG92X-40F10\nG0X0\nG92Z42\nG0Z0\nG92Z0X0Y0\nM3P200\n",
+  "gcode_prefix":"M17\nG28Z300\nG28X-1600F150\nG28Y-3000F100\nG92X-40F10\nG0X0\nG92Z49\nG0Z0\nG92Z0X0Y0\nM3P200\n",
   "gcode_suffix":"G28Z300\nM5P100\nM18"
 }
