@@ -51,9 +51,9 @@
   "simulate_execution": false,
   "spindles": [
     {
-      "cycle_time_seconds": 0.05,
+      "cycle_time_seconds": 0.02,
       "mode":"laser",
-      "duty_max": 0.05,
+      "duty_max": 0.02,
       "duty_min": 0.0,
       "pin": 8,
       "pin_negate":false
