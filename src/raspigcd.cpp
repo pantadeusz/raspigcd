@@ -25,6 +25,7 @@ This is simple program that uses the library. It will execute given GCode.
 */
 
 #include <configuration.hpp>
+#include <configuration_json.hpp>
 #include <converters/gcd_program_to_steps.hpp>
 #include <factories.hpp>
 #include <gcd/remove_g92_from_gcode.hpp>
@@ -38,7 +39,6 @@ This is simple program that uses the library. It will execute given GCode.
 #include <hardware/motor_layout.hpp>
 #include <hardware/stepping.hpp>
 #include <queue_t.hpp>
-#include <configuration_json.hpp>
 
 #include <fstream>
 #include <future>
@@ -871,9 +871,9 @@ class cnc_executor_t
 {
     execution_objects_t _machine;
 
-    configuration::global _cfg; ///< configuration
+    configuration::global _cfg;                        ///< configuration
     std::shared_ptr<fifo_c<multistep_command>> _queue; ///< commands queue - this is our buffer for steps
-    std::atomic_bool _producer_cancel_execution; ///< stop generating steps - this value will be used if we need to break the get_value_from_queue
+    std::atomic_bool _producer_cancel_execution;       ///< stop generating steps - this value will be used if we need to break the get_value_from_queue
     steps_consumer_t _steps_consumer;
     int _last_spindle_on_delay;
     std::map<int, double> _spindles_status;
@@ -1189,6 +1189,32 @@ public:
             throw std::runtime_error("only one command can be executed at a time");
         }
     }
+
+    /**
+ * serialize state
+ * */
+    nlohmann::json get_state()
+    {
+        nlohmann::json ret;
+        ret["last_spindle_on_delay"] = _last_spindle_on_delay;
+        for (auto [k, v] : _spindles_status)
+            ret["spindles_status"][k] = v;
+        ret["current_position"] = _current_position;
+        return ret;
+    }
+    /**
+     * load serialized state
+     * */
+    void set_state(const nlohmann::json state_serialized)
+    {
+        std::cout << state_serialized.dump() << std::endl;
+        _last_spindle_on_delay = state_serialized["last_spindle_on_delay"];
+        int ii = 0;
+        for (auto i : state_serialized.at("spindles_status"))
+            _spindles_status[ii++] = i;
+        for (int i = 0; i < _current_position.size(); i++)
+            _current_position[i] = state_serialized["current_position"][i];
+    }
 };
 
 int main(int argc, char** argv)
@@ -1227,6 +1253,7 @@ int main(int argc, char** argv)
             while (!std::cin.eof()) {
                 std::string cmnd;
                 std::cin >> cmnd;
+
                 if (cmnd == "go") {
                     std::string gcode_program = "; direct gcode interpretation start";
                     bool multiline = false;
@@ -1257,6 +1284,40 @@ int main(int argc, char** argv)
                             std::cerr << "EXECUTION_FAILED: you cannot run multiple programs at the same time. err: " << e.what() << std::endl;
                         } catch (const std::invalid_argument& e) {
                             std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
+                        }
+                    });
+                } else if (cmnd == "sim_go") {
+                    std::string gcode_program = "; direct gcode interpretation start";
+                    bool multiline = false;
+                    std::string l;
+                    while (std::getline(std::cin, l)) {
+                        if (multiline && (l.find(";multiline") != std::string::npos)) break;
+                        static const std::regex r("[\\\\][n]");
+                        l = std::regex_replace(l, r, "\n");
+                        gcode_program += "\n" + l;
+
+                        if (!multiline) {
+                            if (l.find(";multiline") != std::string::npos)
+                                multiline = true;
+                            else
+                                break;
+                        }
+                    }
+
+                    if (execution_thread.joinable()) {
+                        execution_thread.join();
+                    }
+                    execution_thread = std::thread([&, gcode_program]() {
+                        try {
+                            double executio_time = fake_execution_and_statistics_collect(cfg, [&](execution_objects_t& machine) {
+                                cnc_executor_t executor_fake(machine, cfg);
+                                executor_fake.set_state(executor.get_state());
+                                executor_fake.execute_gcode(gcode_program);
+                            });
+                            std::cout << "SIM_GO_TIME: " << executio_time << std::endl;
+                        } catch (std::exception& e) {
+                            std::cout << "SIM_GO_TIME: "
+                                      << "ERROR: " << e.what() << std::endl;
                         }
                     });
 
