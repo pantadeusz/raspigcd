@@ -173,7 +173,7 @@ public:
 
                         break;
                     case SDL_KEYDOWN:
-                        k = event.key.keysym.sym - SDLK_0;
+                        k = event.key.keysym.sym - SDLK_1;
                         if ((k >= 0) && (k < 10)) {
                             buttons_drv->trigger_button_down(k);
                         } else if (event.key.keysym.sym == SDLK_LEFT) {
@@ -209,7 +209,7 @@ public:
 
                         break;
                     case SDL_KEYUP:
-                        k = event.key.keysym.sym - SDLK_0;
+                        k = event.key.keysym.sym - SDLK_1;
                         if ((k >= 0) && (k < 10)) buttons_drv->trigger_button_up(k);
                         break;
                     }

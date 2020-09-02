@@ -986,13 +986,14 @@ class cnc_executor_t
         double dt = ((double)_tick_duration_us) / 1000000.0;
         //distance_with_velocity_t from_dist, to_dist;
         steps_t pos_from_steps = _machine.motor_layout_->cartesian_to_steps(distances[0]); // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
-        follow_path_with_velocity<5>(distances, [&](const distance_with_velocity_t& position) {
-            distance_t dest_pos = {position[0], position[1], position[2], position[3]};
-            steps_t pos_to_steps = _machine.motor_layout_->cartesian_to_steps(dest_pos);
-            chase_steps_exec(pos_from_steps, pos_to_steps);
+        follow_path_with_velocity<5>(
+            distances, [&](const distance_with_velocity_t& position) {
+                distance_t dest_pos = {position[0], position[1], position[2], position[3]};
+                steps_t pos_to_steps = _machine.motor_layout_->cartesian_to_steps(dest_pos);
+                chase_steps_exec(pos_from_steps, pos_to_steps);
 
-            pos_from_steps = pos_to_steps;
-        },
+                pos_from_steps = pos_to_steps;
+            },
             dt, 0.025);
     };
 
@@ -1270,7 +1271,14 @@ int main(int argc, char** argv)
             raw_gcode = true;
         } else if (args.at(i) == "-") { // from stdin
             i++;
+
+
             auto machine = stepping_simple_timer_factory(cfg);
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::PAUSE, [](int k, int v) { std::cout << "PAUSE     " << k << "  value=" << v << std::endl; });
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::TERMINATE, [](int k, int v) { std::cout << "TERMINATE " << k << "  value=" << v << std::endl; });
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](int k, int v) { std::cout << "ENDSTOP_X " << k << "  value=" << v << std::endl; });
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](int k, int v) { std::cout << "ENDSTOP_Y " << k << "  value=" << v << std::endl; });
+            machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](int k, int v) { std::cout << "ENDSTOP_Z " << k << "  value=" << v << std::endl; });
             int buffer_size_for_moves = 3000;
             auto queue = std::make_shared<fifo_c<multistep_command>>();
             cnc_executor_t executor(machine, cfg, buffer_size_for_moves);
