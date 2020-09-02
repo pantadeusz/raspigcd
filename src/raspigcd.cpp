@@ -37,7 +37,7 @@ This is simple program that uses the library. It will execute given GCode.
 #include <hardware/driver/raspberry_pi.hpp>
 #include <hardware/motor_layout.hpp>
 #include <hardware/stepping.hpp>
-
+#include <queue_t.hpp>
 #include <configuration_json.hpp>
 
 #include <fstream>
@@ -55,6 +55,7 @@ This is simple program that uses the library. It will execute given GCode.
 using namespace raspigcd;
 using namespace raspigcd::hardware;
 using namespace raspigcd::gcd;
+using namespace tp;
 
 void help_text(const std::vector<std::string>& args)
 {
@@ -282,61 +283,6 @@ void home_position_find(char axis_id,
         return 0; // stop execution
     });
 }
-
-template <class T>
-class fifo_c
-{
-    std::atomic_flag lock;
-    std::list<T> data;
-
-public:
-    fifo_c<T>() : lock(ATOMIC_FLAG_INIT){};
-    T get(std::atomic<bool>& cancel_execution)
-    {
-        while (!cancel_execution) {
-            while (lock.test_and_set(std::memory_order_acquire))
-                ;
-            if (data.size() > 0) {
-                auto ret = data.front();
-                data.pop_front();
-                lock.clear(std::memory_order_release);
-                return ret;
-            } else {
-                lock.clear(std::memory_order_release);
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            }
-        }
-        throw std::invalid_argument("fifo_c: the get from front broken.");
-    }
-
-    void put(std::atomic<bool>& cancel_execution, T value, int max_queue_size = 3)
-    {
-        while (!cancel_execution) {
-            while (lock.test_and_set(std::memory_order_acquire))
-                ;
-            if ((int)data.size() < (int)max_queue_size) {
-                data.push_back(value);
-                lock.clear(std::memory_order_release);
-                return;
-            } else {
-                lock.clear(std::memory_order_release);
-                std::this_thread::sleep_for(std::chrono::milliseconds(2));
-            }
-        }
-
-        throw std::invalid_argument("fifo_c: the put method broken.");
-    }
-
-    size_t size()
-    {
-        size_t ret;
-        while (lock.test_and_set(std::memory_order_acquire))
-            ;
-        ret = data.size();
-        lock.clear(std::memory_order_release);
-        return ret;
-    }
-};
 /**
  * @brief produces series of multistep steps series filling the buffer that is a list of multistep commands. It can be canceled by setting cancel_execution to true.
  * 
@@ -926,13 +872,11 @@ class cnc_executor_t
 {
     execution_objects_t _machine;
 
-    configuration::global _cfg;
-
-    int _buffer_size_for_moves = 30000;
-    std::shared_ptr<fifo_c<multistep_command>> _queue;
-    std::atomic_bool _producer_cancel_execution;
+    configuration::global _cfg; ///< configuration
+    int _buffer_size_for_moves = 30000; ///< how many commands should we keep in the buffer
+    std::shared_ptr<fifo_c<multistep_command>> _queue; ///< commands queue - this is our buffer for steps
+    std::atomic_bool _producer_cancel_execution; ///< stop generating steps - this value will be used if we need to break the get_value_from_queue
     steps_consumer_t _steps_consumer;
-    int& _tick_duration_us;
     int _last_spindle_on_delay;
     std::map<int, double> _spindles_status;
     distance_with_velocity_t _current_position;
@@ -983,7 +927,7 @@ class cnc_executor_t
         //using namespace raspigcd::movement::simple_steps;
         using namespace movement::physics;
         if (distances.size() < 1) return;
-        double dt = ((double)_tick_duration_us) / 1000000.0;
+        double dt = ((double)_cfg.tick_duration_us) / 1000000.0;
         //distance_with_velocity_t from_dist, to_dist;
         steps_t pos_from_steps = _machine.motor_layout_->cartesian_to_steps(distances[0]); // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
         follow_path_with_velocity<5>(
@@ -1006,8 +950,7 @@ public:
                                               _buffer_size_for_moves(buffer_size_for_moves_),
                                               _queue(std::make_shared<fifo_c<multistep_command>>()),
                                               _producer_cancel_execution(false),
-                                              _steps_consumer(_queue, _machine.timer_drv, _machine.steppers_drv, _cfg.tick_duration_us),
-                                              _tick_duration_us(_cfg.tick_duration_us)
+                                              _steps_consumer(_queue, _machine.timer_drv, _machine.steppers_drv, _cfg.tick_duration_us)
     {
         _last_spindle_on_delay = 7000; // safe delay in miliseconds
         _current_position = {0.0, 0.0, 0.0, 0.0, 0.1};
@@ -1297,7 +1240,6 @@ int main(int argc, char** argv)
                         l = std::regex_replace(l, r, "\n");
                         gcode_program += "\n" + l;
 
-
                         if (!multiline) {
                             if (l.find(";multiline") != std::string::npos)
                                 multiline = true;
@@ -1314,11 +1256,10 @@ int main(int argc, char** argv)
                             std::cout << "EXECUTE_START: " << executor.get_position() << std::endl;
                             executor.execute_gcode(gcode_program);
                             std::cout << "EXECUTE_DONE: " << executor.get_position() << std::endl;
-
                         } catch (const std::runtime_error& e) {
-                            std::cerr << "[E] you cannot run multiple programs at the same time. err: " << e.what() << std::endl;
+                            std::cerr << "EXECUTION_FAILED: you cannot run multiple programs at the same time. err: " << e.what() << std::endl;
                         } catch (const std::invalid_argument& e) {
-                            std::cerr << "[I] " << e.what() << std::endl;
+                            std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
                         }
                     });
 
