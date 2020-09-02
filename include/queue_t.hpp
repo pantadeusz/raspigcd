@@ -28,7 +28,7 @@ public:
         while (!cancel_execution) {
             while (lock.test_and_set(std::memory_order_acquire))
                 ;
-            if (s) {
+            if (s > 0) {
                 auto ret = data[l];
                 l = (l + 1)%max_queue_size;
                 s--;
