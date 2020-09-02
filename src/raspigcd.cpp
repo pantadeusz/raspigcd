@@ -55,7 +55,6 @@ This is simple program that uses the library. It will execute given GCode.
 using namespace raspigcd;
 using namespace raspigcd::hardware;
 using namespace raspigcd::gcd;
-using namespace tp;
 
 void help_text(const std::vector<std::string>& args)
 {
@@ -321,7 +320,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
                     auto time1 = std::chrono::high_resolution_clock::now();
                     double dt = std::chrono::duration<double, std::milli>(time1 - time0).count();
                     std::cout << "calculations of " << ppart.size() << " commands took " << dt << " milliseconds; have " << m_commands.size() << " steps to execute" << std::endl;
-                    calculated_multisteps.put(cancel_execution, {m_commands, machine_state}, cfg.sequential_gcode_execution ? 1 : 5);
+                    calculated_multisteps.put(cancel_execution, {m_commands, machine_state});
 
                     if (cancel_execution) return -100;
                 } break;
@@ -329,7 +328,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
                     if (ppart[0].count('X')) machine_state['X'] = 0.0;
                     if (ppart[0].count('Y')) machine_state['Y'] = 0.0;
                     if (ppart[0].count('Z')) machine_state['Z'] = 0.0;
-                    calculated_multisteps.put(cancel_execution, {{}, machine_state}, cfg.sequential_gcode_execution ? 1 : 5);
+                    calculated_multisteps.put(cancel_execution, {{}, machine_state});
                     if (cancel_execution) return -100;
                 } break;
                 case 92: {
@@ -338,7 +337,7 @@ auto multistep_producer_for_execution = [](fifo_c<std::pair<hardware::multistep_
                         if (pelem.count('Y')) machine_state['Y'] = pelem['Y'];
                         if (pelem.count('Z')) machine_state['Z'] = pelem['Z'];
                     }
-                    calculated_multisteps.put(cancel_execution, {{}, machine_state}, cfg.sequential_gcode_execution ? 1 : 5);
+                    calculated_multisteps.put(cancel_execution, {{}, machine_state});
                     if (cancel_execution) return -100;
                 } break;
                 }
@@ -383,7 +382,7 @@ std::pair<int, block_t> execute_command_parts(partitioned_program_t program_part
 {
     machine.steppers_drv->set_steps(machine.motor_layout_->cartesian_to_steps(block_to_distance_t(machine_state_0)));
     std::cout << "execute_command_parts: starting with steps counters: " << machine.steppers_drv->get_steps() << std::endl;
-    fifo_c<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps;
+    fifo_c<std::pair<hardware::multistep_commands_t, block_t>> calculated_multisteps(cfg.sequential_gcode_execution ? 1 : 5);
 
     std::atomic<bool> paused{false};
     std::function<void(int, int)> on_pause_execution = [machine, &paused](int, int s) {
@@ -873,7 +872,6 @@ class cnc_executor_t
     execution_objects_t _machine;
 
     configuration::global _cfg; ///< configuration
-    int _buffer_size_for_moves = 30000; ///< how many commands should we keep in the buffer
     std::shared_ptr<fifo_c<multistep_command>> _queue; ///< commands queue - this is our buffer for steps
     std::atomic_bool _producer_cancel_execution; ///< stop generating steps - this value will be used if we need to break the get_value_from_queue
     steps_consumer_t _steps_consumer;
@@ -909,7 +907,7 @@ class cnc_executor_t
                 }
             }
             //if (did_mod) {
-            _queue->put(_producer_cancel_execution, executor_command, _buffer_size_for_moves);
+            _queue->put(_producer_cancel_execution, executor_command);
             //}
         } while (did_mod); //while ((--stodo) > 0);
     };
@@ -947,8 +945,7 @@ public:
         configuration::global cfg_,
         int buffer_size_for_moves_ = 30000) : _machine(machine_),
                                               _cfg(cfg_),
-                                              _buffer_size_for_moves(buffer_size_for_moves_),
-                                              _queue(std::make_shared<fifo_c<multistep_command>>()),
+                                              _queue(std::make_shared<fifo_c<multistep_command>>(buffer_size_for_moves_)),
                                               _producer_cancel_execution(false),
                                               _steps_consumer(_queue, _machine.timer_drv, _machine.steppers_drv, _cfg.tick_duration_us)
     {
@@ -1146,7 +1143,7 @@ public:
                             lines_w_numbers.pop_front();
                         multistep_command terminate_command;
                         terminate_command.flags.bits.program_finish_bit = 1;
-                        _queue->put(_steps_consumer.cancel_execution, terminate_command, 10);
+                        _queue->put(_steps_consumer.cancel_execution, terminate_command);
                         _consumer_thread.join(); // and sync
                         std::cout << "[I] finished G command - OK" << std::endl;
                     } else if (m.count('M')) {

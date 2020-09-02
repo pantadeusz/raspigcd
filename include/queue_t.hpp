@@ -1,28 +1,37 @@
 #ifndef ___QUEUE_T_PUZNIAKOWSKI___
 #define ___QUEUE_T_PUZNIAKOWSKI___
 #include <atomic>
-#include <vector>
 #include <list>
+#include <vector>
+#include <stdexcept>
 
-namespace tp {
+namespace raspigcd {
 
 
 template <class T>
 class fifo_c
 {
     std::atomic_flag lock;
-    std::list<T> data;
+    std::vector<T> data;
+    unsigned int l, s, max_queue_size;
 
 public:
-    fifo_c<T>() : lock(ATOMIC_FLAG_INIT){};
+    fifo_c<T>(const unsigned int size = 32000) : lock(ATOMIC_FLAG_INIT)
+    {
+        if (size <= 0) throw std::invalid_argument("the queue size must be greater than 0");
+        l = s = 0;
+        max_queue_size = size;
+        data.resize(max_queue_size);
+    };
     T get(std::atomic<bool>& cancel_execution)
     {
         while (!cancel_execution) {
             while (lock.test_and_set(std::memory_order_acquire))
                 ;
-            if (data.size() > 0) {
-                auto ret = data.front();
-                data.pop_front();
+            if (s) {
+                auto ret = data[l];
+                l = (l + 1)%max_queue_size;
+                s--;
                 lock.clear(std::memory_order_release);
                 return ret;
             } else {
@@ -33,13 +42,14 @@ public:
         throw std::invalid_argument("fifo_c: the get from front broken.");
     }
 
-    void put(std::atomic<bool>& cancel_execution, T value, int max_queue_size = 3)
+    void put(std::atomic<bool>& cancel_execution, T value)
     {
         while (!cancel_execution) {
             while (lock.test_and_set(std::memory_order_acquire))
                 ;
-            if ((int)data.size() < (int)max_queue_size) {
-                data.push_back(value);
+            if (s < max_queue_size) {
+                data[(l+s)%max_queue_size];
+                s++;
                 lock.clear(std::memory_order_release);
                 return;
             } else {
