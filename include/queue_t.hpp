@@ -1,7 +1,6 @@
 #ifndef ___QUEUE_T_PUZNIAKOWSKI___
 #define ___QUEUE_T_PUZNIAKOWSKI___
 #include <atomic>
-#include <list>
 #include <vector>
 #include <stdexcept>
 
@@ -48,7 +47,7 @@ public:
             while (lock.test_and_set(std::memory_order_acquire))
                 ;
             if (s < max_queue_size) {
-                data[(l+s)%max_queue_size];
+                data[(l+s)%max_queue_size] = value;
                 s++;
                 lock.clear(std::memory_order_release);
                 return;
