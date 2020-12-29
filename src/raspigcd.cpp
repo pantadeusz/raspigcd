@@ -881,6 +881,9 @@ class cnc_executor_t
 
     std::mutex _execute_mutex;
 
+    std::atomic<int> _break_execution;
+
+
     void chase_steps_exec(const steps_t start_pos_, const steps_t destination_pos_)
     {
         //hardware::multistep_commands_t ret;
@@ -930,10 +933,13 @@ class cnc_executor_t
         steps_t pos_from_steps = _machine.motor_layout_->cartesian_to_steps(distances[0]); // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
         follow_path_with_velocity<5>(
             distances, [&](const distance_with_velocity_t& position) {
+                if (_break_execution == 1) {
+                    _break_execution = 0;
+                    throw std::out_of_range("termination by _break_execution");
+                }
                 distance_t dest_pos = {position[0], position[1], position[2], position[3]};
                 steps_t pos_to_steps = _machine.motor_layout_->cartesian_to_steps(dest_pos);
                 chase_steps_exec(pos_from_steps, pos_to_steps);
-
                 pos_from_steps = pos_to_steps;
             },
             dt, 0.025);
@@ -947,7 +953,8 @@ public:
                                               _cfg(cfg_),
                                               _queue(std::make_shared<fifo_c<multistep_command>>(buffer_size_for_moves_)),
                                               _producer_cancel_execution(false),
-                                              _steps_consumer(_queue, _machine.timer_drv, _machine.steppers_drv, _cfg.tick_duration_us)
+                                              _steps_consumer(_queue, _machine.timer_drv, _machine.steppers_drv, _cfg.tick_duration_us),
+                                              _break_execution(0)
     {
         _last_spindle_on_delay = 7000; // safe delay in miliseconds
         _current_position = {0.0, 0.0, 0.0, 0.0, 0.1};
@@ -967,6 +974,7 @@ public:
     std::list<std::pair<std::size_t, std::string>> execute_g0_moves(
         const std::list<std::pair<std::size_t, std::string>>& moves_buffer_)
     {
+        std::string error_code_name = "";
         auto iterator = moves_buffer_.begin();
         std::vector<distance_with_velocity_t> path_to_follow = {_current_position};
         for (; iterator != moves_buffer_.end(); iterator++) {
@@ -1044,7 +1052,12 @@ public:
             path_to_follow.push_back(pp2);
             path_to_follow.push_back(pp3);
         }
-        perform_moves_abs(path_to_follow);
+        try {
+            perform_moves_abs(path_to_follow);
+        } catch (const std::out_of_range& e) {
+            error_code_name = e.what();
+        }
+        if (error_code_name != "") throw std::out_of_range(error_code_name);
         return {iterator, moves_buffer_.end()};
     }
 
@@ -1056,11 +1069,12 @@ public:
     std::list<std::pair<std::size_t, std::string>> execute_g1_moves(
         const std::list<std::pair<std::size_t, std::string>>& moves_buffer_)
     {
+        std::string error_code_name = "";
         auto iterator = moves_buffer_.begin();
         std::vector<distance_with_velocity_t> path_to_follow = {_current_position};
         while (iterator != moves_buffer_.end()) {
             auto line_parsed = command_to_map_of_arguments((*iterator).second);
-            std::cout << ">> " << (*iterator).first << ":" << (*iterator).second << std::endl;
+            //std::cout << ">> " << (*iterator).first << ":" << (*iterator).second << std::endl;
 
             if ((line_parsed.count('G') == 0) || (line_parsed['G'] != 1)) break;
             _current_position = {
@@ -1075,14 +1089,18 @@ public:
         if (_cfg.spindles.at(0).mode == configuration::spindle_modes::LASER) {
             _machine.spindles_drv->spindle_pwm_power(0, _spindles_status[0]);
         }
-        perform_moves_abs(path_to_follow);
+        try {
+            perform_moves_abs(path_to_follow);
+        } catch (const std::out_of_range& e) {
+            error_code_name = e.what();
+        }
         while (_queue->size() > 0)
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
         if (_cfg.spindles.at(0).mode == configuration::spindle_modes::LASER) {
             _machine.spindles_drv->spindle_pwm_power(0, 0);
         }
-
+        if (error_code_name != "") throw std::out_of_range(error_code_name);
         return {iterator, moves_buffer_.end()};
     }
 
@@ -1122,16 +1140,25 @@ public:
                 try {
                     auto m = command_to_map_of_arguments(lines_w_numbers.front().second);
                     if (m.count('G')) {
+                        std::string error_code_name = "";
                         _steps_consumer.cancel_execution = false;
                         std::thread _consumer_thread = std::thread([this]() {
                             _steps_consumer.run();
                         });
                         std::cout << "[I] running moves" << std::endl;
-                        if (m['G'] == 0)
-                            lines_w_numbers = execute_g0_moves(lines_w_numbers);
-                        else if (m['G'] == 1)
-                            lines_w_numbers = execute_g1_moves(lines_w_numbers);
-                        else if ((int)m['G'] == 92) {
+                        if (m['G'] == 0) {
+                            try {
+                                lines_w_numbers = execute_g0_moves(lines_w_numbers);
+                            } catch (const std::out_of_range& e) {
+                                error_code_name = e.what();
+                            }
+                        } else if (m['G'] == 1) {
+                            try {
+                                lines_w_numbers = execute_g1_moves(lines_w_numbers);
+                            } catch (const std::out_of_range& e) {
+                                error_code_name = e.what();
+                            }
+                        } else if ((int)m['G'] == 92) {
                             _current_position = {
                                 m.count('X') ? m['X'] : _current_position[0],
                                 m.count('Y') ? m['Y'] : _current_position[1],
@@ -1145,7 +1172,18 @@ public:
                         terminate_command.flags.bits.program_finish_bit = 1;
                         _queue->put(_steps_consumer.cancel_execution, terminate_command);
                         _consumer_thread.join(); // and sync
-                        std::cout << "[I] finished G command - OK" << std::endl;
+                        if (error_code_name == "") {
+                            std::cout << "[I] finished G command - OK" << std::endl;
+                        } else {
+                            std::cout << "[I] finished G command - error: " << error_code_name << std::endl;
+                            _machine.steppers_drv->get_steps();
+                            auto p_real = _machine.motor_layout_->steps_to_cartesian(_machine.steppers_drv->get_steps()); // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
+                            for (int i = 0; i < 4; i++)
+                                _current_position[i] = p_real[i];
+                            _current_position[4] = 0.1;
+                            _execute_mutex.unlock();
+                            throw std::out_of_range(error_code_name);
+                        }
                     } else if (m.count('M')) {
                         switch ((int)(m.at('M'))) {
                         case 17:
@@ -1190,6 +1228,20 @@ public:
         }
     }
 
+    void stop()
+    {
+        using namespace std::chrono_literals;
+        _break_execution = 1;
+        int prevdelay = _steps_consumer.delay_microseconds;
+        for (int i = 0; i < 1000; i++) {
+            _steps_consumer.delay_microseconds = prevdelay + i;
+        }
+        while (_break_execution == 1) {
+            std::this_thread::sleep_for(10us);
+        }
+        _steps_consumer.delay_microseconds = prevdelay;
+    }
+
     /**
  * serialize state
  * */
@@ -1200,6 +1252,13 @@ public:
         for (auto [k, v] : _spindles_status)
             ret["spindles_status"][k] = v;
         ret["current_position"] = _current_position;
+        if (_execute_mutex.try_lock()) {
+            _execute_mutex.unlock();
+            ret["execute_gcode"] = "idle";
+        } else {
+            ret["execute_gcode"] = "running";
+        }
+        ret["steps"] = _machine.steppers_drv->get_steps();
         return ret;
     }
     /**
@@ -1215,6 +1274,55 @@ public:
         for (int i = 0; i < _current_position.size(); i++)
             _current_position[i] = state_serialized["current_position"][i];
     }
+};
+
+auto interactive_go = [](auto& cfg, auto& execution_thread, auto gcode_program, auto& executor) {
+    if (execution_thread.joinable()) {
+        execution_thread.join();
+    }
+    execution_thread = std::thread([&, gcode_program]() {
+        try {
+            std::cout << "EXECUTE_START: " << executor.get_position() << std::endl;
+            executor.execute_gcode(gcode_program);
+            std::cout << "EXECUTE_DONE: " << executor.get_position() << std::endl;
+        } catch (const std::runtime_error& e) {
+            std::cerr << "EXECUTION_FAILED: you cannot run multiple programs at the same time. err: " << e.what() << std::endl;
+        } catch (const std::invalid_argument& e) {
+            std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
+        } catch (const std::out_of_range& e) {
+            std::string errors = e.what();
+            while (errors != "") {
+                try {
+                    executor.execute_gcode("G0X0Y0Z0");
+                    errors = "";
+                } catch (const std::out_of_range& eign) {
+                    errors = eign.what();
+                }
+            }
+            std::cout << "STOPPED: " << executor.get_position() << std::endl;
+        }
+    });
+};
+
+auto interactive_sim_go = [](auto& cfg, auto& execution_thread, auto gcode_program, auto& executor) {
+    if (execution_thread.joinable()) {
+        execution_thread.join();
+    }
+    execution_thread = std::thread([&, gcode_program]() {
+        try {
+            double executio_time = fake_execution_and_statistics_collect(cfg, [&](execution_objects_t& machine) {
+                cnc_executor_t executor_fake(machine, cfg);
+                executor_fake.set_state(executor.get_state());
+                executor_fake.execute_gcode(gcode_program);
+            });
+            std::cout << "SIM_GO_TIME: " << executio_time << std::endl;
+        } catch (std::exception& e) {
+            std::cout << "SIM_GO_TIME: "
+                      << "ERROR: " << e.what() << std::endl;
+        } catch (const std::out_of_range& e) {
+            std::cout << "STOPPED: " << executor.get_position() << std::endl;
+        }
+    });
 };
 
 int main(int argc, char** argv)
@@ -1235,7 +1343,7 @@ int main(int argc, char** argv)
             std::cout << cfg << std::endl;
         } else if (args.at(i) == "--raw") {
             raw_gcode = true;
-        } else if (args.at(i) == "-") { // from stdin
+        } else if (args.at(i) == "--configtest") { // from stdin
             i++;
 
 
@@ -1253,8 +1361,73 @@ int main(int argc, char** argv)
             while (!std::cin.eof()) {
                 std::string cmnd;
                 std::cin >> cmnd;
+                std::cout << "II: command: " << cmnd << std::endl;
+                ;
+                if (cmnd == "stop") {
+                    executor.stop();
+                } else if (cmnd == "status") {
+                    auto status = executor.get_state();
+                    raspigcd::steps_t end_steps = {
+                        status["steps"][0],
+                        status["steps"][1],
+                        status["steps"][2],
+                        status["steps"][3],
+                    }; //machine.steppers_drv->get_steps();
+                    raspigcd::steps_t end_pos = {
+                        status["current_position"][0],
+                        status["current_position"][1],
+                        status["current_position"][2],
+                        status["current_position"][3],
+                    }; //machine.steppers_drv->get_steps();
+                    std::cout << "STEPS: ";
+                    for (auto v : end_steps)
+                        std::cout << v << " ";
+                    if (status["execute_gcode"] == "running") {
+                        std::cout << "STATUS: " << end_pos << " running" << std::endl;
+                    } else {
+                        std::cout << "STATUS_ELEMENT: ";
+                        //for (auto [k, v] : machine_status_after_exec)
+                        //    std::cout << " " << k << "=" << v;
+                        std::cout << std::endl;
+                        std::cout << "STATUS: " << end_pos << " idle" << std::endl;
+                    }
+                    /*
 
-                if (cmnd == "go") {
+                    std::cout << "STATUS: " << status["current_position"] << " " << status["execute_gcode"] << std::endl; */
+                } else if ((cmnd == "execute") || (cmnd == "exec")) {
+                    std::string filename;
+                    std::getline(std::cin, filename);
+                    filename = std::regex_replace(filename, std::regex("^ +"), "");
+                    using namespace raspigcd;
+                    using namespace raspigcd::hardware;
+
+                    std::ifstream gcd_file(filename);
+                    if (!gcd_file.is_open()) throw std::invalid_argument("could not open file \"" + filename + "\"");
+                    std::string gcode_program((std::istreambuf_iterator<char>(gcd_file)),
+                        std::istreambuf_iterator<char>());
+
+                    std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
+                    interactive_go(cfg, execution_thread, gcode_program, executor);
+                    std::cout << "EXECUTE_FINISHED: \"" << filename << "\"" << std::endl;
+                    std::cout << "EXECUTE_DONE: " << executor.get_state()["current_position"] << std::endl;
+                    /*
+                    if (execute_promise.valid()) {
+                        std::cout << "task is currently executing..." << std::endl;
+                    } else {
+                        cancel_execution = false;
+                        execute_promise = std::async([&, filename]() {
+                            low_buttons_handlers_guard low_buttons_handlers_guard_(machine.buttons_drv);
+                            std::cout << "EXECUTE: \"" << filename << "\"" << std::endl;
+                            auto [err_code, machine_state] = execute_gcode_file(cfg, raw_gcode, filename, machine, cancel_execution, machine_status_after_exec);
+                            std::cout << "EXECUTE_FINISHED: \"" << filename << "\"" << std::endl;
+                            auto end_pos = machine.motor_layout_->steps_to_cartesian(machine.steppers_drv->get_steps());
+                            machine_state['X'] = end_pos[0];
+                            machine_state['Y'] = end_pos[1];
+                            machine_state['Z'] = end_pos[2];
+                            std::cout << "EXECUTE_DONE: " << end_pos << std::endl;
+                            return machine_state;
+                        }); */
+                } else if (cmnd == "go") {
                     std::string gcode_program = "; direct gcode interpretation start";
                     bool multiline = false;
                     std::string l;
@@ -1271,21 +1444,7 @@ int main(int argc, char** argv)
                                 break;
                         }
                     }
-
-                    if (execution_thread.joinable()) {
-                        execution_thread.join();
-                    }
-                    execution_thread = std::thread([&, gcode_program]() {
-                        try {
-                            std::cout << "EXECUTE_START: " << executor.get_position() << std::endl;
-                            executor.execute_gcode(gcode_program);
-                            std::cout << "EXECUTE_DONE: " << executor.get_position() << std::endl;
-                        } catch (const std::runtime_error& e) {
-                            std::cerr << "EXECUTION_FAILED: you cannot run multiple programs at the same time. err: " << e.what() << std::endl;
-                        } catch (const std::invalid_argument& e) {
-                            std::cerr << "EXECUTION_FAILED: " << e.what() << std::endl;
-                        }
-                    });
+                    interactive_go(cfg, execution_thread, gcode_program, executor);
                 } else if (cmnd == "sim_go") {
                     std::string gcode_program = "; direct gcode interpretation start";
                     bool multiline = false;
@@ -1303,30 +1462,15 @@ int main(int argc, char** argv)
                                 break;
                         }
                     }
-
-                    if (execution_thread.joinable()) {
-                        execution_thread.join();
-                    }
-                    execution_thread = std::thread([&, gcode_program]() {
-                        try {
-                            double executio_time = fake_execution_and_statistics_collect(cfg, [&](execution_objects_t& machine) {
-                                cnc_executor_t executor_fake(machine, cfg);
-                                executor_fake.set_state(executor.get_state());
-                                executor_fake.execute_gcode(gcode_program);
-                            });
-                            std::cout << "SIM_GO_TIME: " << executio_time << std::endl;
-                        } catch (std::exception& e) {
-                            std::cout << "SIM_GO_TIME: "
-                                      << "ERROR: " << e.what() << std::endl;
-                        }
-                    });
-
+                    interactive_sim_go(cfg, execution_thread, gcode_program, executor);
                 } else if (cmnd == "q") {
                     break;
                 } else if (cmnd == "sync") {
                     if (execution_thread.joinable()) {
                         execution_thread.join();
                     }
+                } else {
+                    std::cerr << "EE: Wrong command: " << cmnd << std::endl;
                 }
             }
         }
