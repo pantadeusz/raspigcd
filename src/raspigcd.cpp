@@ -916,6 +916,64 @@ class cnc_executor_t
     };
 
 
+    void chase_steps_exec_sync(const steps_t start_pos_, const steps_t destination_pos_)
+    {
+        //hardware::multistep_commands_t ret;
+        auto steps = start_pos_;
+        hardware::multistep_command executor_command = {};
+        executor_command.count = 1;
+        int did_mod = 1;
+        //ret.reserve(4096);
+        std::chrono::high_resolution_clock::time_point prev_timer = _machine.timer_drv->start_timing();
+        do {
+            did_mod = 0;
+            for (unsigned int i = 0; i < steps.size(); i++) {
+                if (destination_pos_[i] > steps[i]) {
+                    steps[i]++;
+                    executor_command.b[i].dir = 1;
+                    executor_command.b[i].step = 1;
+                    did_mod = 1;
+                } else if (destination_pos_[i] < steps[i]) {
+                    steps[i]--;
+                    executor_command.b[i].dir = 0;
+                    executor_command.b[i].step = 1;
+                    did_mod = 1;
+                } else {
+                    executor_command.b[i].step = 0;
+                }
+            }
+            //if (did_mod) {
+            //_queue->put(_producer_cancel_execution, executor_command);
+            auto s = executor_command;
+            if (s.flags.bits.program_finish_bit == 1) {
+                std::cout << "s.flags.bits.program_finish_bit: FINISH" << std::endl;
+                break;
+            }
+            while ((s.count > 0)) {
+                s.count--;
+                _machine.steppers_drv->do_step(s.b);
+                //_steps_counter += s.b[0].step + s.b[1].step + s.b[2].step;
+                //_tick_index++;
+
+                //machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_X, [](int k, int v) { std::cout << "ENDSTOP_X " << k << "  value=" << v << std::endl; });
+                //machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Y, [](int k, int v) { std::cout << "ENDSTOP_Y " << k << "  value=" << v << std::endl; });
+                //machine.buttons_drv->on_key(low_buttons_default_meaning_t::ENDSTOP_Z, [](int k, int v) { std::cout << "ENDSTOP_Z " << k << "  value=" << v << std::endl; });
+
+                auto kstate = _machine.buttons_drv->keys_state();
+                if ((kstate.at(low_buttons_default_meaning_t::ENDSTOP_X) > 0) ||
+                    (kstate.at(low_buttons_default_meaning_t::ENDSTOP_Y) > 0) ||
+                    (kstate.at(low_buttons_default_meaning_t::ENDSTOP_Z) > 0)) {
+                    std::cerr << "ENDSTOP HIT!!!" << std::endl;
+                    throw std::out_of_range("endstop hit");
+                }
+
+                prev_timer = _machine.timer_drv->wait_for_tick_us(prev_timer, _cfg.tick_duration_us);
+            }
+
+            //}
+        } while (did_mod); //while ((--stodo) > 0);
+    };
+
     /**
  * @brief this method executes movement. It does not take into account the fact, that it changes physical position of the machine head
  * 
@@ -944,6 +1002,31 @@ class cnc_executor_t
             },
             dt, 0.025);
     };
+
+    void perform_moves_abs_sync_check(const std::vector<distance_with_velocity_t> distances)
+    {
+        using namespace raspigcd::hardware;
+        using namespace raspigcd::gcd;
+        //using namespace raspigcd::movement::simple_steps;
+        using namespace movement::physics;
+        if (distances.size() < 1) return;
+        double dt = ((double)_cfg.tick_duration_us) / 1000000.0;
+        //distance_with_velocity_t from_dist, to_dist;
+        steps_t pos_from_steps = _machine.motor_layout_->cartesian_to_steps(distances[0]); // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
+        follow_path_with_velocity<5>(
+            distances, [&](const distance_with_velocity_t& position) {
+                if (_break_execution == 1) {
+                    _break_execution = 0;
+                    throw std::out_of_range("termination by _break_execution");
+                }
+                distance_t dest_pos = {position[0], position[1], position[2], position[3]};
+                steps_t pos_to_steps = _machine.motor_layout_->cartesian_to_steps(dest_pos);
+                chase_steps_exec_sync(pos_from_steps, pos_to_steps);
+                pos_from_steps = pos_to_steps;
+            },
+            dt, 0.025);
+    };
+
 
 public:
     cnc_executor_t(const execution_objects_t machine_,
@@ -1062,7 +1145,7 @@ public:
     }
 
     /**
-     * @brief executes only G0 moves
+     * @brief executes only G1 moves
      * 
      * @param moves_buffer_ 
      */
@@ -1101,6 +1184,100 @@ public:
             _machine.spindles_drv->spindle_pwm_power(0, 0);
         }
         if (error_code_name != "") throw std::out_of_range(error_code_name);
+        return {iterator, moves_buffer_.end()};
+    }
+
+    std::list<std::pair<std::size_t, std::string>> execute_g28_moves(
+        const std::list<std::pair<std::size_t, std::string>>& moves_buffer_)
+    {
+        std::string error_code_name = "";
+        auto iterator = moves_buffer_.begin();
+        std::vector<distance_with_velocity_t> path_to_follow = {_current_position};
+
+        auto line_parsed = command_to_map_of_arguments((*iterator).second);
+
+        auto pp0 = _current_position;
+        auto pp1 = _current_position;
+
+        _current_position = {
+            line_parsed.count('X') ? line_parsed['X'] : _current_position[0],
+            line_parsed.count('Y') ? line_parsed['Y'] : _current_position[1],
+            line_parsed.count('Z') ? line_parsed['Z'] : _current_position[2],
+            line_parsed.count('A') ? line_parsed['A'] : _current_position[3],
+            line_parsed.count('F') ? line_parsed['F'] : _current_position[4]};
+
+        auto pp2 = _current_position;
+        auto pp3 = _current_position;
+
+        if (((pp3 - pp0) * distance_with_velocity_t{1.0, 1.0, 1.0, 1.0, 0.0}).length() == 0) {
+            iterator++;
+            return {iterator, moves_buffer_.end()};
+        }
+
+        double frac = 0.25;                                      // the portion of the segment that is dedicated to acceleration and breaking
+        auto move_vec_norm = (pp3 - pp0) / (pp3 - pp0).length(); // the movement vector normalized to the length of 1
+        double max_speed_frac = 1.0;                             // the fraction of maximal speed that will be achieved
+        double max_speed_frac_d = 0.5;                           // the coefficient that is the negative powers of 2 for adjusting using binary search
+        double max_acceleration = _cfg.proportional_max_accelerations_mm_s2(move_vec_norm);
+        auto calculate_pp = [&]() {
+            pp1 = pp0 * (1.0 - frac) + pp3 * (frac);
+            pp2 = pp0 * (frac) + pp3 * (1.0 - frac);
+
+            pp0.back() = _cfg.proportional_max_no_accel_velocity_mm_s(move_vec_norm);
+            pp1.back() = max_speed_frac * _cfg.proportional_max_velocity_mm_s(move_vec_norm);
+            pp2.back() = max_speed_frac * _cfg.proportional_max_velocity_mm_s(move_vec_norm);
+            pp3.back() = _cfg.proportional_max_no_accel_velocity_mm_s(move_vec_norm);
+
+            auto abaccel_vec = pp0 - pp1;
+            double acceleration_l = distance_t(abaccel_vec).length();
+            double t = (pp1.back() - pp0.back()) / max_acceleration;
+            double s = pp0.back() * t + 0.5 * max_acceleration * t * t; // target distance acceleration
+            return std::pair(s, acceleration_l);
+        };
+
+        // adjust frac
+        for (int i = 0; i < 10; i++) {
+            auto [s, acceleration_l] = calculate_pp();
+            if (s < acceleration_l) {
+                frac -= 0.02;
+            } else if (s > acceleration_l) {
+                frac += 0.02;
+            }
+            if (frac < 0.01) {
+                frac = 0.01;
+                break;
+            }
+            if (frac > 0.5) {
+                frac = 0.49;
+                break;
+            }
+        }
+        // estimate best acceleration
+        for (int i = 0; i < 10; i++) {
+            auto [s, acceleration_l] = calculate_pp();
+            if (s < acceleration_l) {
+                max_speed_frac += max_speed_frac_d;
+                max_speed_frac_d *= 0.5;
+            } else if (s > acceleration_l) {
+                max_speed_frac -= max_speed_frac_d;
+                max_speed_frac_d *= 0.5;
+            } else
+                break;
+            if (max_speed_frac > 1.0)
+                break;
+        }
+
+        path_to_follow.push_back(pp1);
+        path_to_follow.push_back(pp2);
+        path_to_follow.push_back(pp3);
+        //iterator++;
+        try {
+            perform_moves_abs_sync_check(path_to_follow);
+        } catch (const std::out_of_range& e) {
+            error_code_name = e.what();
+        }
+        if (error_code_name != "") throw std::out_of_range(error_code_name);
+        iterator++;
         return {iterator, moves_buffer_.end()};
     }
 
@@ -1166,8 +1343,26 @@ public:
                                 m.count('A') ? m['A'] : _current_position[3],
                                 m.count('F') ? m['F'] : _current_position[4]};
                             lines_w_numbers.pop_front();
-                        } else
+                            auto steps = _machine.motor_layout_->cartesian_to_steps(_current_position);
+                            _machine.steppers_drv->set_steps(steps);
+                        } else if (m['G'] == 28) {
+                            try {
+                                lines_w_numbers = execute_g28_moves(lines_w_numbers);
+                            } catch (const std::out_of_range& e) {
+                                //error_code_name = e.what();
+                                std::cerr << "Broken on: " << e.what() << std::endl;
+                            }
+                        } else {
                             lines_w_numbers.pop_front();
+                        }
+                        {
+                            while (_queue->size() > 0) std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                            auto p = _machine.motor_layout_->steps_to_cartesian(_machine.steppers_drv->get_steps());
+                            _current_position[0] = p[0];
+                            _current_position[1] = p[1];
+                            _current_position[2] = p[2];
+                            _current_position[3] = p[3];
+                        }
                         multistep_command terminate_command;
                         terminate_command.flags.bits.program_finish_bit = 1;
                         _queue->put(_steps_consumer.cancel_execution, terminate_command);
@@ -1176,7 +1371,6 @@ public:
                             std::cout << "[I] finished G command - OK" << std::endl;
                         } else {
                             std::cout << "[I] finished G command - error: " << error_code_name << std::endl;
-                            _machine.steppers_drv->get_steps();
                             auto p_real = _machine.motor_layout_->steps_to_cartesian(_machine.steppers_drv->get_steps()); // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
                             for (int i = 0; i < 4; i++)
                                 _current_position[i] = p_real[i];
@@ -1293,7 +1487,7 @@ auto interactive_go = [](auto& cfg, auto& execution_thread, auto gcode_program, 
             std::string errors = e.what();
             while (errors != "") {
                 try {
-                    executor.execute_gcode("G0X0Y0Z0");
+                    executor.execute_gcode("M5P100\nG0Z5\nG0X0Y0\nG0X0Y0Z0");
                     errors = "";
                 } catch (const std::out_of_range& eign) {
                     errors = eign.what();
