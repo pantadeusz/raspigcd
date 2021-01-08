@@ -302,8 +302,8 @@ public:
                 return ret;
             } else {
                 lock.clear(std::memory_order_release);
-                std::cerr << "X";
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                // std::cerr << "X";
+                std::this_thread::sleep_for(std::chrono::milliseconds(6));
             }
         }
         throw std::invalid_argument("fifo_c: the get from front broken.");
