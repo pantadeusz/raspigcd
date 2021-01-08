@@ -990,8 +990,7 @@ class cnc_executor_t
         double dt = ((double)_cfg.tick_duration_us) / 1000000.0;
         //distance_with_velocity_t from_dist, to_dist;
         steps_t pos_from_steps = _machine.motor_layout_->cartesian_to_steps(distances[0]); // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
-        follow_path_with_velocity<5>(
-            distances, [&](const distance_with_velocity_t& position) {
+        auto exec_path_part= [&](const distance_with_velocity_t& position) {
                 if (_break_execution == 1) {
                     _break_execution = 0;
                     throw std::out_of_range("termination by _break_execution");
@@ -1000,8 +999,11 @@ class cnc_executor_t
                 steps_t pos_to_steps = _machine.motor_layout_->cartesian_to_steps(dest_pos);
                 chase_steps_exec(pos_from_steps, pos_to_steps);
                 pos_from_steps = pos_to_steps;
-            },
+            };
+        follow_path_with_velocity<5>(
+            distances, exec_path_part,
             dt, 0.025);
+        exec_path_part(distances.back());
     };
 
     void perform_moves_abs_sync_check(const std::vector<distance_with_velocity_t> distances)
@@ -1014,8 +1016,7 @@ class cnc_executor_t
         double dt = ((double)_cfg.tick_duration_us) / 1000000.0;
         //distance_with_velocity_t from_dist, to_dist;
         steps_t pos_from_steps = _machine.motor_layout_->cartesian_to_steps(distances[0]); // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
-        follow_path_with_velocity<5>(
-            distances, [&](const distance_with_velocity_t& position) {
+        auto exec_path_part  = [&](const distance_with_velocity_t& position) {
                 if (_break_execution == 1) {
                     _break_execution = 0;
                     throw std::out_of_range("termination by _break_execution");
@@ -1024,8 +1025,12 @@ class cnc_executor_t
                 steps_t pos_to_steps = _machine.motor_layout_->cartesian_to_steps(dest_pos);
                 chase_steps_exec_sync(pos_from_steps, pos_to_steps);
                 pos_from_steps = pos_to_steps;
-            },
+            };
+        follow_path_with_velocity<5>(
+            distances, exec_path_part,
             dt, 0.025);
+        exec_path_part(distances.back());
+
     };
 
 

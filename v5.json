@@ -79,7 +79,7 @@
       "steps_per_mm": 1066.6666666
     }
   ],
-  "tick_duration_us": 35,
+  "tick_duration_us": 50,
   "douglas_peucker_marigin": 0.04,
   "steps_generator0": "program_to_steps",
   "steps_generator": "linear_interpolation",
