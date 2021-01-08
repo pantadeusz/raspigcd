@@ -342,7 +342,7 @@ hardware::multistep_commands_t linear_interpolation_to_steps(
     }
     std::vector<multistep_command> result;
     result.reserve(20000000);
-    auto on_point_f = [&](const distance_with_velocity_t& position) {
+    auto on_path_point_f = [&](const distance_with_velocity_t& position) {
         //if (!(position == pp0)) {
             distance_t dest_pos = {position[0], position[1], position[2], position[3]};
             multistep_commands_t steps_todo;
@@ -358,10 +358,10 @@ hardware::multistep_commands_t linear_interpolation_to_steps(
             pos_from_steps = pos_to_steps;
         //}
     };
-    follow_path_with_velocity<5>(distances, on_point_f,
+    follow_path_with_velocity<5>(distances, on_path_point_f,
         dt, 0.025
-);
-    on_point_f(distances.back());
+    );
+    on_path_point_f(distances.back());
 /*{
     auto position = distances.back();
 distance_t dest_pos = {position[0], position[1], position[2], position[3]};
