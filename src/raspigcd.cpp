@@ -38,6 +38,7 @@ This is simple program that uses the library. It will execute given GCode.
 #include <hardware/driver/raspberry_pi.hpp>
 #include <hardware/motor_layout.hpp>
 #include <hardware/stepping.hpp>
+#include <hardware/thread_helper.hpp>
 #include <queue_t.hpp>
 
 #include <fstream>
@@ -1320,6 +1321,7 @@ public:
                         std::string error_code_name = "";
                         _steps_consumer.cancel_execution = false;
                         std::thread _consumer_thread = std::thread([this]() {
+                            set_thread_realtime();
                             _steps_consumer.run();
                         });
                         std::cout << "[I] running moves" << std::endl;
@@ -1356,7 +1358,8 @@ public:
                             lines_w_numbers.pop_front();
                         }
                         {
-                            while (_queue->size() > 0) std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                            while (_queue->size() > 0)
+                                std::this_thread::sleep_for(std::chrono::milliseconds(50));
                             auto p = _machine.motor_layout_->steps_to_cartesian(_machine.steppers_drv->get_steps());
                             _current_position[0] = p[0];
                             _current_position[1] = p[1];
@@ -1510,11 +1513,11 @@ auto interactive_sim_go = [](auto& cfg, auto& execution_thread, auto gcode_progr
                 executor_fake.execute_gcode(gcode_program);
             });
             std::cout << "SIM_GO_TIME: " << executio_time << std::endl;
+        } catch (const std::out_of_range& e) {
+            std::cout << "STOPPED: " << executor.get_position() << std::endl;
         } catch (std::exception& e) {
             std::cout << "SIM_GO_TIME: "
                       << "ERROR: " << e.what() << std::endl;
-        } catch (const std::out_of_range& e) {
-            std::cout << "STOPPED: " << executor.get_position() << std::endl;
         }
     });
 };
