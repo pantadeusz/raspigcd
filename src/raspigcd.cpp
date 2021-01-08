@@ -801,10 +801,10 @@ public:
                 }
                 while ((s.count > 0) && (!cancel_execution)) {
                     s.count--;
-                    steppers->do_step(s.b);
                     //_steps_counter += s.b[0].step + s.b[1].step + s.b[2].step;
                     //_tick_index++;
                     prev_timer = timers->wait_for_tick_us(prev_timer, delay_microseconds);
+                    steppers->do_step(s.b);
                 }
             }
         } catch (std::invalid_argument& e) {

@@ -24,8 +24,8 @@
   ],
   "lasers": [],
   "max_accelerations_mm_s2": [
-    1000.0,
-    1000.0,
+    800.0,
+    800.0,
     50.0,
     200.0
   ],
@@ -79,7 +79,7 @@
       "steps_per_mm": 1066.6666666
     }
   ],
-  "tick_duration_us": 50,
+  "tick_duration_us": 35,
   "douglas_peucker_marigin": 0.04,
   "steps_generator0": "program_to_steps",
   "steps_generator": "linear_interpolation",
