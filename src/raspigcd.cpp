@@ -1172,7 +1172,15 @@ public:
                 line_parsed.count('Z') ? line_parsed['Z'] : _current_position[2],
                 line_parsed.count('A') ? line_parsed['A'] : _current_position[3],
                 line_parsed.count('F') ? line_parsed['F'] : _current_position[4]};
-            path_to_follow.push_back(_current_position);
+            if (path_to_follow.size()) {
+                if (((path_to_follow.back() * distance_with_velocity_t{1,1,1,1,0})-(_current_position * distance_with_velocity_t{1,1,1,1,0}) ).length() < 0.001) {
+                    path_to_follow.back()[4] = _current_position[4];
+                } else {
+                    path_to_follow.push_back(_current_position);
+                }
+            } else {
+                path_to_follow.push_back(_current_position);
+            }
             iterator++;
         }
         if (_cfg.spindles.at(0).mode == configuration::spindle_modes::LASER) {
