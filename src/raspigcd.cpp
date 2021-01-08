@@ -39,8 +39,8 @@ This is simple program that uses the library. It will execute given GCode.
 #include <hardware/motor_layout.hpp>
 #include <hardware/stepping.hpp>
 #include <hardware/thread_helper.hpp>
-#include <queue_t.hpp>
 #include <m_help.hpp>
+#include <queue_t.hpp>
 
 #include <fstream>
 #include <future>
@@ -57,8 +57,6 @@ This is simple program that uses the library. It will execute given GCode.
 using namespace raspigcd;
 using namespace raspigcd::hardware;
 using namespace raspigcd::gcd;
-
-
 
 
 auto wait_for_component_to_start = [](auto m, int t = 3000) {
@@ -106,6 +104,14 @@ public:
         steppers = steppers_;
         delay_microseconds = delay_microseconds_;
         cancel_execution = false;
+
+        {
+            // start with non empty queue
+            hardware::multistep_command executor_command = {};
+            executor_command.count = 1;
+            for (int i = 0; i < 100; i++)
+                queue_->put(cancel_execution, executor_command);
+        }
     }
     void run()
     {
@@ -119,8 +125,6 @@ public:
                 }
                 while ((s.count > 0) && (!cancel_execution)) {
                     s.count--;
-                    //_steps_counter += s.b[0].step + s.b[1].step + s.b[2].step;
-                    //_tick_index++;
                     prev_timer = timers->wait_for_tick_us(prev_timer, delay_microseconds);
                     steppers->do_step(s.b);
                 }
@@ -216,8 +220,6 @@ class cnc_executor_t
                 break;
             }
             while ((s.count > 0)) {
-                s.count--;
-                _machine.steppers_drv->do_step(s.b);
                 //_steps_counter += s.b[0].step + s.b[1].step + s.b[2].step;
                 //_tick_index++;
 
@@ -234,6 +236,8 @@ class cnc_executor_t
                 }
 
                 prev_timer = _machine.timer_drv->wait_for_tick_us(prev_timer, _cfg.tick_duration_us);
+                s.count--;
+                _machine.steppers_drv->do_step(s.b);
             }
 
             //}
@@ -255,16 +259,16 @@ class cnc_executor_t
         double dt = ((double)_cfg.tick_duration_us) / 1000000.0;
         //distance_with_velocity_t from_dist, to_dist;
         steps_t pos_from_steps = _machine.motor_layout_->cartesian_to_steps(distances[0]); // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
-        auto exec_path_part= [&](const distance_with_velocity_t& position) {
-                if (_break_execution == 1) {
-                    _break_execution = 0;
-                    throw std::out_of_range("termination by _break_execution");
-                }
-                distance_t dest_pos = {position[0], position[1], position[2], position[3]};
-                steps_t pos_to_steps = _machine.motor_layout_->cartesian_to_steps(dest_pos);
-                chase_steps_exec(pos_from_steps, pos_to_steps);
-                pos_from_steps = pos_to_steps;
-            };
+        auto exec_path_part = [&](const distance_with_velocity_t& position) {
+            if (_break_execution == 1) {
+                _break_execution = 0;
+                throw std::out_of_range("termination by _break_execution");
+            }
+            distance_t dest_pos = {position[0], position[1], position[2], position[3]};
+            steps_t pos_to_steps = _machine.motor_layout_->cartesian_to_steps(dest_pos);
+            chase_steps_exec(pos_from_steps, pos_to_steps);
+            pos_from_steps = pos_to_steps;
+        };
         follow_path_with_velocity<5>(
             distances, exec_path_part,
             dt, 0.025);
@@ -281,21 +285,20 @@ class cnc_executor_t
         double dt = ((double)_cfg.tick_duration_us) / 1000000.0;
         //distance_with_velocity_t from_dist, to_dist;
         steps_t pos_from_steps = _machine.motor_layout_->cartesian_to_steps(distances[0]); // ml_.cartesian_to_steps({pp0[0], pp0[1], pp0[2], pp0[3]});
-        auto exec_path_part  = [&](const distance_with_velocity_t& position) {
-                if (_break_execution == 1) {
-                    _break_execution = 0;
-                    throw std::out_of_range("termination by _break_execution");
-                }
-                distance_t dest_pos = {position[0], position[1], position[2], position[3]};
-                steps_t pos_to_steps = _machine.motor_layout_->cartesian_to_steps(dest_pos);
-                chase_steps_exec_sync(pos_from_steps, pos_to_steps);
-                pos_from_steps = pos_to_steps;
-            };
+        auto exec_path_part = [&](const distance_with_velocity_t& position) {
+            if (_break_execution == 1) {
+                _break_execution = 0;
+                throw std::out_of_range("termination by _break_execution");
+            }
+            distance_t dest_pos = {position[0], position[1], position[2], position[3]};
+            steps_t pos_to_steps = _machine.motor_layout_->cartesian_to_steps(dest_pos);
+            chase_steps_exec_sync(pos_from_steps, pos_to_steps);
+            pos_from_steps = pos_to_steps;
+        };
         follow_path_with_velocity<5>(
             distances, exec_path_part,
             dt, 0.025);
         exec_path_part(distances.back());
-
     };
 
 
@@ -393,13 +396,19 @@ public:
                 if (s < acceleration_l) {
                     max_speed_frac += max_speed_frac_d;
                     max_speed_frac_d *= 0.5;
+                    std::cerr << "max_speed_frac_d += ; => " << max_speed_frac << std::endl;
                 } else if (s > acceleration_l) {
                     max_speed_frac -= max_speed_frac_d;
                     max_speed_frac_d *= 0.5;
-                } else
+                    std::cerr << "max_speed_frac_d -= ; => " << max_speed_frac << std::endl;
+                } else {
+                    std::cerr << "s === acceleration!!! " << s << " == " << acceleration_l << std::endl;
                     break;
-                if (max_speed_frac > 1.0)
+                }
+                if (max_speed_frac > 1.0001) {
+                    max_speed_frac = 1.0;
                     break;
+                }
             }
 
             path_to_follow.push_back(pp1);
@@ -425,11 +434,15 @@ public:
     {
         std::string error_code_name = "";
         auto iterator = moves_buffer_.begin();
-        std::vector<distance_with_velocity_t> path_to_follow = {_current_position};
+        _current_position = _machine.motor_layout_->steps_to_cartesian(_machine.steppers_drv->get_steps()); // synchronize steps
+        _current_position[4] = *std::min_element(_cfg.max_no_accel_velocity_mm_s.begin(), _cfg.max_no_accel_velocity_mm_s.end());
+        std::vector<distance_with_velocity_t> path_to_follow = {_current_position}; // always start with the first step
+        // let's get every move we can perform
         while (iterator != moves_buffer_.end()) {
             auto line_parsed = command_to_map_of_arguments((*iterator).second);
             //std::cout << ">> " << (*iterator).first << ":" << (*iterator).second << std::endl;
 
+            // if it is not G1, then we should stop
             if ((line_parsed.count('G') == 0) || (line_parsed['G'] != 1)) break;
             _current_position = {
                 line_parsed.count('X') ? line_parsed['X'] : _current_position[0],
@@ -437,17 +450,15 @@ public:
                 line_parsed.count('Z') ? line_parsed['Z'] : _current_position[2],
                 line_parsed.count('A') ? line_parsed['A'] : _current_position[3],
                 line_parsed.count('F') ? line_parsed['F'] : _current_position[4]};
-            if (path_to_follow.size()) {
-                if (((path_to_follow.back() * distance_with_velocity_t{1,1,1,1,0})-(_current_position * distance_with_velocity_t{1,1,1,1,0}) ).length() < 0.001) {
-                    path_to_follow.back()[4] = _current_position[4];
-                } else {
-                    path_to_follow.push_back(_current_position);
-                }
+            // we only add path element if it performs some move
+            if (((path_to_follow.back() * distance_with_velocity_t{1, 1, 1, 1, 0}) - (_current_position * distance_with_velocity_t{1, 1, 1, 1, 0})).length() < 0.001) {
+                path_to_follow.back()[4] = _current_position[4];
             } else {
                 path_to_follow.push_back(_current_position);
             }
             iterator++;
         }
+        // turn on the laser
         if (_cfg.spindles.at(0).mode == configuration::spindle_modes::LASER) {
             _machine.spindles_drv->spindle_pwm_power(0, _spindles_status[0]);
         }
@@ -456,12 +467,14 @@ public:
         } catch (const std::out_of_range& e) {
             error_code_name = e.what();
         }
+        // wait for empty queue - synchronize with the steppers
         while (_queue->size() > 0)
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
+        // now we can turn off laser
         if (_cfg.spindles.at(0).mode == configuration::spindle_modes::LASER) {
             _machine.spindles_drv->spindle_pwm_power(0, 0);
         }
+        // check errors
         if (error_code_name != "") throw std::out_of_range(error_code_name);
         return {iterator, moves_buffer_.end()};
     }
@@ -537,15 +550,20 @@ public:
             if (s < acceleration_l) {
                 max_speed_frac += max_speed_frac_d;
                 max_speed_frac_d *= 0.5;
+                std::cerr << "max_speed_frac_d += ; => " << max_speed_frac << std::endl;
             } else if (s > acceleration_l) {
                 max_speed_frac -= max_speed_frac_d;
                 max_speed_frac_d *= 0.5;
-            } else
+                std::cerr << "max_speed_frac_d -= ; => " << max_speed_frac << std::endl;
+            } else {
+                std::cerr << "s === acceleration!!! " << s << " == " << acceleration_l << std::endl;
                 break;
-            if (max_speed_frac > 1.0)
+            }
+            if (max_speed_frac > 1.0001) {
+                max_speed_frac = 1.0;
                 break;
+            }
         }
-
         path_to_follow.push_back(pp1);
         path_to_follow.push_back(pp2);
         path_to_follow.push_back(pp3);
@@ -987,5 +1005,3 @@ int main(int argc, char** argv)
 
     return 0;
 }
-
-

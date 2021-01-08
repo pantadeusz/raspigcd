@@ -63,9 +63,13 @@ public:
     /**
      * returns the buffer size - how many values are in the buffer
      * */
-    size_t size() const
+    size_t size()
     {
-        return s;
+        while (lock.test_and_set(std::memory_order_acquire))
+                ;
+        auto v = s;
+        lock.clear(std::memory_order_release);
+        return v;
     }
 };
 

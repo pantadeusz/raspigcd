@@ -29,6 +29,12 @@
     50.0,
     200.0
   ],
+  "max_accelerations_mm_s2_orig": [
+    800.0,
+    800.0,
+    50.0,
+    200.0
+  ],
   "max_no_accel_velocity_mm_s": [
     5.0,
     5.0,
