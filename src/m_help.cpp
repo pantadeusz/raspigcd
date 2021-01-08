@@ -1,4 +1,5 @@
 #include <m_help.hpp>
+#include <iostream>
 
 void help_text(const std::vector<std::string>& args)
 {
