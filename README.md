@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/pantadeusz/raspigcd.svg?branch=master)](https://travis-ci.org/pantadeusz/raspigcd)
 
+My new experiments more compatible with GRBL are [here - pigcd](https://gitlab.com/pantadeusz1/pigcd)
+
 The G-CODE interpreter for Raspberry Pi 3 (it works on older versions, but untested)
 
 Recent experiments: 
