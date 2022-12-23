@@ -2,7 +2,11 @@
 
 [![Build Status](https://travis-ci.org/pantadeusz/raspigcd.svg?branch=master)](https://travis-ci.org/pantadeusz/raspigcd)
 
-My new experiments more compatible with GRBL are [here - pigcd](https://codeberg.org/tadeusz/pigcd)
+# WARNING! I am not actively developing this code
+
+The current version is [here - pigcd](https://codeberg.org/tadeusz/pigcd) - it has embedded JsonAPI so you can integrate it with web solutions easily.
+
+## What is raspigcd
 
 The G-CODE interpreter for Raspberry Pi 3 (it works on older versions, but untested)
 
