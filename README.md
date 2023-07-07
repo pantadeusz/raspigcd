@@ -4,7 +4,7 @@
 
 # WARNING! I am not actively developing this code
 
-The current version is [here - pigcd](https://codeberg.org/tadeusz/pigcd) - it has embedded JsonAPI so you can integrate it with web solutions easily.
+The current version is [here - pigcd](https://codeberg.org/frezia/pigcd) - it has embedded JsonAPI so you can integrate it with web solutions easily.
 
 ## What is raspigcd
 
